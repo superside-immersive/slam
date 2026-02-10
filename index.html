@@ -11,10 +11,25 @@
     <!-- 2. 8th Wall Engine (standalone binary) - async + preload slam -->
     <script async src="./xr-standalone/xr.js" data-preload-chunks="slam"></script>
 
-    <!-- 3. Three.js loaders + VRM (use A-Frame's THREE) -->
+    <!-- 3. Set up THREE namespace IMMEDIATELY after A-Frame -->
+    <script>
+      // Bridge AFRAME.THREE to window.THREE so UMD loaders can find it
+      if (window.AFRAME && window.AFRAME.THREE) {
+        window.THREE = window.AFRAME.THREE;
+        console.log('✅ THREE bridged from AFRAME.THREE');
+      }
+    </script>
+
+    <!-- 4. Three.js loaders + VRM (depend on window.THREE from above) -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/FBXLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@1.0.9/lib/three-vrm.js"></script>
+
+    <!-- 5. Verify loaders are attached -->
+    <script>
+      console.log('GLTFLoader attached:', !!THREE.GLTFLoader);
+      console.log('FBXLoader attached:', !!THREE.FBXLoader);
+    </script>
 
     <script>
       window.addEventListener('xrloaded', () => {
@@ -100,6 +115,58 @@
 
     <script>
       const MIXAMO_RIG_MAP = {
+        Hips: 'hips',
+        Spine: 'spine',
+        Spine1: 'chest',
+        Spine2: 'upperChest',
+        Neck: 'neck',
+        Head: 'head',
+        LeftShoulder: 'leftShoulder',
+        LeftArm: 'leftUpperArm',
+        LeftForeArm: 'leftLowerArm',
+        LeftHand: 'leftHand',
+        LeftHandThumb1: 'leftThumbMetacarpal',
+        LeftHandThumb2: 'leftThumbProximal',
+        LeftHandThumb3: 'leftThumbDistal',
+        LeftHandIndex1: 'leftIndexProximal',
+        LeftHandIndex2: 'leftIndexIntermediate',
+        LeftHandIndex3: 'leftIndexDistal',
+        LeftHandMiddle1: 'leftMiddleProximal',
+        LeftHandMiddle2: 'leftMiddleIntermediate',
+        LeftHandMiddle3: 'leftMiddleDistal',
+        LeftHandRing1: 'leftRingProximal',
+        LeftHandRing2: 'leftRingIntermediate',
+        LeftHandRing3: 'leftRingDistal',
+        LeftHandPinky1: 'leftLittleProximal',
+        LeftHandPinky2: 'leftLittleIntermediate',
+        LeftHandPinky3: 'leftLittleDistal',
+        RightShoulder: 'rightShoulder',
+        RightArm: 'rightUpperArm',
+        RightForeArm: 'rightLowerArm',
+        RightHand: 'rightHand',
+        RightHandThumb1: 'rightThumbMetacarpal',
+        RightHandThumb2: 'rightThumbProximal',
+        RightHandThumb3: 'rightThumbDistal',
+        RightHandIndex1: 'rightIndexProximal',
+        RightHandIndex2: 'rightIndexIntermediate',
+        RightHandIndex3: 'rightIndexDistal',
+        RightHandMiddle1: 'rightMiddleProximal',
+        RightHandMiddle2: 'rightMiddleIntermediate',
+        RightHandMiddle3: 'rightMiddleDistal',
+        RightHandRing1: 'rightRingProximal',
+        RightHandRing2: 'rightRingIntermediate',
+        RightHandRing3: 'rightRingDistal',
+        RightHandPinky1: 'rightLittleProximal',
+        RightHandPinky2: 'rightLittleIntermediate',
+        RightHandPinky3: 'rightLittleDistal',
+        LeftUpLeg: 'leftUpperLeg',
+        LeftLeg: 'leftLowerLeg',
+        LeftFoot: 'leftFoot',
+        LeftToeBase: 'leftToes',
+        RightUpLeg: 'rightUpperLeg',
+        RightLeg: 'rightLowerLeg',
+        RightFoot: 'rightFoot',
+        RightToeBase: 'rightToes',
         mixamorigHips: 'hips',
         mixamorigSpine: 'spine',
         mixamorigSpine1: 'chest',
@@ -154,6 +221,14 @@
         mixamorigRightToeBase: 'rightToes'
       };
 
+      const getThreeLoader = (name) => {
+        return (
+          THREE?.[name] ||
+          window.AFRAME?.THREE?.[name] ||
+          window[name]
+        );
+      };
+
       AFRAME.registerComponent('vrm-character', {
         schema: {
           model: { type: 'string' },
@@ -179,7 +254,12 @@
             return;
           }
 
-          const loader = new THREE.GLTFLoader();
+          const GLTFLoaderCtor = getThreeLoader('GLTFLoader');
+          if (!GLTFLoaderCtor) {
+            console.error('GLTFLoader no disponible');
+            return;
+          }
+          const loader = new GLTFLoaderCtor();
           loader.register((parser) => new THREE.VRMLoaderPlugin(parser));
 
           loader.load(
@@ -262,7 +342,12 @@
           }
 
           this.vrm.humanoid?.resetNormalizedPose();
-          const fbxLoader = new THREE.FBXLoader();
+          const FBXLoaderCtor = getThreeLoader('FBXLoader');
+          if (!FBXLoaderCtor) {
+            console.error('FBXLoader no disponible');
+            return;
+          }
+          const fbxLoader = new FBXLoaderCtor();
 
           fbxLoader.load(
             encodeURI(this.data.animation),
@@ -313,10 +398,17 @@
           clip.tracks.forEach((track) => {
             const trackSplitted = track.name.split('.');
             const mixamoRigName = trackSplitted[0];
+            const cleanedRigName = mixamoRigName.replace(/^mixamorig:/, '').replace(/^mixamorig/, '');
             const normalizedRigName = mixamoRigName.replace('mixamorig:', 'mixamorig');
-            const vrmBoneName = MIXAMO_RIG_MAP[normalizedRigName] || MIXAMO_RIG_MAP[mixamoRigName];
+            const rigCandidates = [
+              mixamoRigName,
+              normalizedRigName,
+              cleanedRigName,
+              `mixamorig${cleanedRigName}`
+            ];
+            const vrmBoneName = rigCandidates.map((name) => MIXAMO_RIG_MAP[name]).find(Boolean);
             const vrmNodeName = this.vrm.humanoid?.getNormalizedBoneNode(vrmBoneName)?.name;
-            const mixamoRigNode = fbx.getObjectByName(mixamoRigName) || fbx.getObjectByName(normalizedRigName);
+            const mixamoRigNode = rigCandidates.map((name) => fbx.getObjectByName(name)).find(Boolean);
 
             if (!vrmNodeName || !mixamoRigNode) {
               return;
@@ -363,7 +455,7 @@
               );
             }
           });
-
+          console.log(`FBX tracks: ${clip.tracks.length}, mapped: ${tracks.length}`);
           return new THREE.AnimationClip('vrmAnimation', clip.duration, tracks);
         }
       });
@@ -384,7 +476,7 @@
         id="snoo-vrm"
         position="1 0 -2"
         scale="0.9 0.9 0.9"
-        vrm-character="model: ./redditslides/public/finalsnoo.vrm; animation: ./redditslides/public/dance.fbx; speed: 0.8">
+        vrm-character="model: ./redditslides/public/finalsnoo.vrm; animation: ./redditslides/public/reddit-animation/animations/Step Hip Hop Dance.fbx; speed: 0.8">
       </a-entity>
 
       <!-- Cilindro verde flotante -->
