@@ -183,7 +183,7 @@
           loader.register((parser) => new THREE.VRMLoaderPlugin(parser));
 
           loader.load(
-            this.data.model,
+            encodeURI(this.data.model),
             (gltf) => {
               const vrm = gltf.userData.vrm;
               if (!vrm) {
@@ -265,7 +265,7 @@
           const fbxLoader = new THREE.FBXLoader();
 
           fbxLoader.load(
-            this.data.animation,
+            encodeURI(this.data.animation),
             (fbx) => {
               const clip = this._convertMixamoAnimation(fbx);
               if (!clip) {
@@ -301,7 +301,10 @@
           const quatTemp = new THREE.Quaternion();
           const vec3Temp = new THREE.Vector3();
 
-          const motionHipsHeight = fbx.getObjectByName('mixamorigHips')?.position.y;
+          const hipsNode =
+            fbx.getObjectByName('mixamorigHips') ||
+            fbx.getObjectByName('mixamorig:Hips');
+          const motionHipsHeight = hipsNode ? hipsNode.position.y : null;
           const vrmHipsY = this.vrm.humanoid?.getNormalizedBoneNode('hips')?.getWorldPosition(vec3Temp).y;
           const vrmRootY = this.vrm.scene.getWorldPosition(vec3Temp).y;
           const vrmHipsHeight = Math.abs(vrmHipsY - vrmRootY);
@@ -310,9 +313,10 @@
           clip.tracks.forEach((track) => {
             const trackSplitted = track.name.split('.');
             const mixamoRigName = trackSplitted[0];
-            const vrmBoneName = MIXAMO_RIG_MAP[mixamoRigName];
+            const normalizedRigName = mixamoRigName.replace('mixamorig:', 'mixamorig');
+            const vrmBoneName = MIXAMO_RIG_MAP[normalizedRigName] || MIXAMO_RIG_MAP[mixamoRigName];
             const vrmNodeName = this.vrm.humanoid?.getNormalizedBoneNode(vrmBoneName)?.name;
-            const mixamoRigNode = fbx.getObjectByName(mixamoRigName);
+            const mixamoRigNode = fbx.getObjectByName(mixamoRigName) || fbx.getObjectByName(normalizedRigName);
 
             if (!vrmNodeName || !mixamoRigNode) {
               return;
@@ -394,8 +398,5 @@
       <a-camera position="0 1.2 0"></a-camera>
     </a-scene>
 
-    <div style="position:fixed;bottom:10px;right:10px;font-size:10px;color:rgba(255,255,255,0.5);z-index:9999;pointer-events:none;">
-      8th Wall XR Engine © Niantic Spatial
-    </div>
   </body>
 </html>
