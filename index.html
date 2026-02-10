@@ -22,13 +22,53 @@
 
     <!-- 4. Three.js loaders + VRM (depend on window.THREE from above) -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/FBXLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@1.0.9/lib/three-vrm.js"></script>
+    <script>
+      let fbxResolve;
+      let fbxReject;
+      window.fbxLoaderReady = new Promise((resolve, reject) => {
+        fbxResolve = resolve;
+        fbxReject = reject;
+      });
+      window._fbxLoaderResolve = fbxResolve;
+      window._fbxLoaderReject = fbxReject;
+    </script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module">
+      (async () => {
+        try {
+          const { FBXLoader } = await import('three/addons/loaders/FBXLoader.js');
+          window.FBXLoader = FBXLoader;
+          if (window._fbxLoaderResolve) {
+            window._fbxLoaderResolve(FBXLoader);
+          }
+          console.log('✅ FBXLoader attached via module import');
+        } catch (error) {
+          if (window._fbxLoaderReject) {
+            window._fbxLoaderReject(error);
+          }
+          console.error('FBXLoader attach failed:', error);
+        }
+      })();
+    </script>
 
     <!-- 5. Verify loaders are attached -->
     <script>
       console.log('GLTFLoader attached:', !!THREE.GLTFLoader);
-      console.log('FBXLoader attached:', !!THREE.FBXLoader);
+      if (window.fbxLoaderReady && typeof window.fbxLoaderReady.then === 'function') {
+        window.fbxLoaderReady
+          .then(() => console.log('FBXLoader attached:', !!window.FBXLoader))
+          .catch((error) => console.error('FBXLoader attach failed:', error));
+      } else {
+        console.warn('FBXLoader promise not ready for logging');
+      }
     </script>
 
     <script>
@@ -79,6 +119,32 @@
 
     <script>
       const banner = document.getElementById('info-banner');
+      const setBanner = (html, autoHideMs = 0) => {
+        banner.innerHTML = html;
+        banner.style.display = 'block';
+        if (autoHideMs > 0) {
+          setTimeout(() => (banner.style.display = 'none'), autoHideMs);
+        }
+      };
+
+      let vrmReady = false;
+      let animReady = false;
+      const updateLoadingBanner = () => {
+        if (!vrmReady || !animReady) {
+          setBanner('<span class="ok">⏳ Cargando modelo y animacion...</span>');
+        } else {
+          setBanner('<span class="ok">✅ Listo</span>', 1500);
+        }
+      };
+      window._setVrmReady = () => {
+        vrmReady = true;
+        updateLoadingBanner();
+      };
+      window._setAnimReady = () => {
+        animReady = true;
+        updateLoadingBanner();
+      };
+      updateLoadingBanner();
       
       window.addEventListener('xrloaded', () => {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -98,11 +164,34 @@
       document.addEventListener('DOMContentLoaded', () => {
         const scene = document.querySelector('a-scene');
         if (!scene) return;
+
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const disableXrWeb = () => {
+          if (scene.hasAttribute('xrweb')) {
+            scene.removeAttribute('xrweb');
+            console.warn('⚠️ XRWeb disabled due to camera failure');
+          }
+        };
+
+        if (!isMobile) {
+          // Keep SLAM on mobile; only disable XR on desktop after assets are ready.
+          const waitForAssets = () => {
+            if (vrmReady && animReady) {
+              disableXrWeb();
+            } else {
+              setTimeout(waitForAssets, 300);
+            }
+          };
+          waitForAssets();
+        }
+
         scene.addEventListener('camerastatuschange', (e) => {
           console.log('📷 Camera status:', e.detail.status);
           if (e.detail.status === 'hasVideo') {
-            banner.innerHTML = '<span class="ok">✅ WEBCAM ACTIVA + SLAM TRACKING</span>';
-            setTimeout(() => banner.style.display = 'none', 3000);
+            setBanner('<span class="ok">✅ WEBCAM ACTIVA + SLAM TRACKING</span>', 3000);
+          }
+          if (e.detail.status === 'failed') {
+            disableXrWeb();
           }
         });
         scene.addEventListener('realityready', () => console.log('✅ Reality ready'));
@@ -281,6 +370,9 @@
               this.vrm = vrm;
               this._prepareMaterials(vrm);
               this.el.object3D.add(vrm.scene);
+              if (window._setVrmReady) {
+                window._setVrmReady();
+              }
               this._loadAnimation();
             },
             undefined,
@@ -336,13 +428,22 @@
             }
           }
         },
-        _loadAnimation() {
+        async _loadAnimation() {
           if (!this.data.animation || !this.vrm) {
             return;
           }
 
           this.vrm.humanoid?.resetNormalizedPose();
-          const FBXLoaderCtor = getThreeLoader('FBXLoader');
+          let FBXLoaderCtor = getThreeLoader('FBXLoader');
+          if (!FBXLoaderCtor && window.fbxLoaderReady) {
+            try {
+              await window.fbxLoaderReady;
+              FBXLoaderCtor = getThreeLoader('FBXLoader');
+            } catch (error) {
+              console.error('FBXLoader no disponible:', error);
+              return;
+            }
+          }
           if (!FBXLoaderCtor) {
             console.error('FBXLoader no disponible');
             return;
@@ -367,6 +468,9 @@
               action.clampWhenFinished = false;
               action.timeScale = this.data.speed;
               action.play();
+              if (window._setAnimReady) {
+                window._setAnimReady();
+              }
             },
             undefined,
             (error) => {
@@ -398,13 +502,19 @@
           clip.tracks.forEach((track) => {
             const trackSplitted = track.name.split('.');
             const mixamoRigName = trackSplitted[0];
-            const cleanedRigName = mixamoRigName.replace(/^mixamorig:/, '').replace(/^mixamorig/, '');
-            const normalizedRigName = mixamoRigName.replace('mixamorig:', 'mixamorig');
+            const rigName = mixamoRigName.split('|').pop();
+            const cleanedRigName = rigName
+              .replace(/^mixamorig:/, '')
+              .replace(/^mixamorig_/, '')
+              .replace(/^mixamorig/, '');
+            const normalizedRigName = rigName.replace('mixamorig:', 'mixamorig');
             const rigCandidates = [
+              rigName,
               mixamoRigName,
               normalizedRigName,
               cleanedRigName,
-              `mixamorig${cleanedRigName}`
+              `mixamorig${cleanedRigName}`,
+              `mixamorig:${cleanedRigName}`
             ];
             const vrmBoneName = rigCandidates.map((name) => MIXAMO_RIG_MAP[name]).find(Boolean);
             const vrmNodeName = this.vrm.humanoid?.getNormalizedBoneNode(vrmBoneName)?.name;
@@ -422,7 +532,7 @@
               parentRestWorldRotation.identity();
             }
 
-            if (track instanceof THREE.QuaternionKeyframeTrack) {
+            if (track.ValueTypeName === 'quaternion') {
               for (let i = 0; i < track.values.length; i += 4) {
                 const flatQuaternion = track.values.slice(i, i + 4);
                 quatTemp.fromArray(flatQuaternion);
@@ -442,7 +552,7 @@
                   )
                 )
               );
-            } else if (track instanceof THREE.VectorKeyframeTrack) {
+            } else if (track.ValueTypeName === 'vector') {
               const values = track.values.map((value, index) =>
                 (this.vrm.meta?.metaVersion === '0' && index % 3 !== 1 ? -value : value) * hipsPositionScale
               );
