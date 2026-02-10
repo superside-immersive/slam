@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>8th Wall SLAM - World Effects</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+    <!-- 1. A-Frame ANTES del engine -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+
+    <!-- 2. 8th Wall Engine (standalone binary) - async + preload slam -->
+    <script async src="./xr-standalone/xr.js" data-preload-chunks="slam"></script>
+
+    <script>
+      window.addEventListener('xrloaded', () => {
+        console.log('✅ XR8 v' + XR8.version() + ' cargado');
+        console.log('✅ XrController:', !!XR8.XrController);
+      });
+    </script>
+
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+      /* Ocultar botón VR de A-Frame y del Immersive Web Emulator */
+      .a-enter-vr, .a-enter-ar,
+      .a-enter-vr-button, .a-enter-ar-button,
+      [class*="immersive-web"], [class*="webxr"] {
+        display: none !important;
+      }
+      #info-banner {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0,0,0,0.85);
+        color: #0f0;
+        font-family: monospace;
+        font-size: 13px;
+        padding: 10px 15px;
+        z-index: 999999;
+        line-height: 1.6;
+      }
+      #info-banner .warning { color: #ff0; }
+      #info-banner .ok { color: #0f0; }
+      #info-banner .tip { color: #0af; }
+    </style>
+  </head>
+
+  <body>
+    <div id="info-banner">
+      <span class="ok">Cargando...</span>
+    </div>
+
+    <script>
+      const banner = document.getElementById('info-banner');
+      
+      window.addEventListener('xrloaded', () => {
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+          banner.innerHTML = '<span class="ok">✅ MÓVIL DETECTADO — Webcam + SLAM activo!</span>';
+          setTimeout(() => banner.style.display = 'none', 3000);
+        } else {
+          banner.innerHTML = 
+            '<span class="ok">✅ Engine XR8 cargado</span><br>' +
+            '<span class="warning">⚠️ DESKTOP: Estás viendo el entorno 3D simulado (preview)</span><br>' +
+            '<span class="tip">📱 Para webcam + SLAM real: abrí esta URL en tu celular via HTTPS (ngrok)</span><br>' +
+            '<span class="tip">🖱️ Usá el mouse para moverte: click+arrastrá para rotar, scroll para zoom</span>';
+        }
+      });
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const scene = document.querySelector('a-scene');
+        if (!scene) return;
+        scene.addEventListener('camerastatuschange', (e) => {
+          console.log('📷 Camera status:', e.detail.status);
+          if (e.detail.status === 'hasVideo') {
+            banner.innerHTML = '<span class="ok">✅ WEBCAM ACTIVA + SLAM TRACKING</span>';
+            setTimeout(() => banner.style.display = 'none', 3000);
+          }
+        });
+        scene.addEventListener('realityready', () => console.log('✅ Reality ready'));
+        scene.addEventListener('realityerror', (e) => {
+          console.error('❌ Error:', e.detail);
+          banner.innerHTML = '<span style="color:red">❌ Error: ' + JSON.stringify(e.detail) + '</span>';
+        });
+      });
+    </script>
+
+    <a-scene
+      xrweb="disableWorldTracking: false; allowedDevices: any"
+      vr-mode-ui="enabled: false"
+      renderer="colorManagement: true"
+      loading-screen="enabled: false">
+
+      <!-- Luces -->
+      <a-entity light="type: ambient; intensity: 0.8"></a-entity>
+      <a-entity light="type: directional; intensity: 0.6" position="-1 2 1"></a-entity>
+
+      <!-- Cubo azul rotando -->
+      <a-box 
+        position="0 0.5 -2" 
+        rotation="0 45 0" 
+        color="#4CC3D9" 
+        scale="0.5 0.5 0.5"
+        animation="property: rotation; to: 0 405 0; loop: true; dur: 5000; easing: linear">
+      </a-box>
+
+      <!-- Esfera roja -->
+      <a-sphere position="1 0.3 -2.5" radius="0.3" color="#EF2D5E"></a-sphere>
+
+      <!-- Cilindro verde flotante -->
+      <a-cylinder
+        position="-1 0.4 -2"
+        radius="0.25" height="0.8"
+        color="#7BC8A4"
+        animation="property: position; to: -1 0.8 -2; dir: alternate; loop: true; dur: 2000; easing: easeInOutQuad">
+      </a-cylinder>
+
+      <a-camera position="0 1.2 0"></a-camera>
+    </a-scene>
+
+    <div style="position:fixed;bottom:10px;right:10px;font-size:10px;color:rgba(255,255,255,0.5);z-index:9999;pointer-events:none;">
+      8th Wall XR Engine © Niantic Spatial
+    </div>
+  </body>
+</html>

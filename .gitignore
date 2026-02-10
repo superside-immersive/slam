@@ -1,0 +1,23 @@
+# Certificados SSL
+*.pem
+*.key
+*.crt
+
+# Node modules (si usas npm serve)
+node_modules/
+package-lock.json
+
+# Logs
+*.log
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Backups
+*.backup
+*.bak
