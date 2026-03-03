@@ -58,37 +58,7 @@
     // ── Retarget Mixamo FBX animation to VRM humanoid bones ──
     function convertMixamoAnimation(fbx, vrm) {
       var clip = THREE.AnimationClip.findByName(fbx.animations, 'mixamo.com') || fbx.animations[0];
-      if (!clip) { console.error('No animation clip found in FBX'); return null; }
-
-      // Pre-compute world quaternions for ALL FBX bones by composing local
-      // quaternions top-down (parent before child via traverse).  This avoids
-      // getWorldQuaternion() which depends on matrixWorld update machinery that
-      // behaves differently between the ESM three@0.158.0 FBXLoader and the
-      // 8th Wall runtime's bundled THREE (cross-instance matrix staleness).
-      var fbxBoneWorldQuats = new Map();
-      fbx.traverse(function(node) {
-        var wq = new THREE.Quaternion();
-        var pWQ = node.parent ? fbxBoneWorldQuats.get(node.parent) : null;
-        if (pWQ) {
-          var ax = pWQ.x, ay = pWQ.y, az = pWQ.z, aw = pWQ.w;
-          var bx = node.quaternion.x, by = node.quaternion.y, bz = node.quaternion.z, bw = node.quaternion.w;
-          wq.set(
-            ax * bw + aw * bx + ay * bz - az * by,
-            ay * bw + aw * by + az * bx - ax * bz,
-            az * bw + aw * bz + ax * by - ay * bx,
-            aw * bw - ax * bx - ay * by - az * bz
-          );
-        } else {
-          wq.set(node.quaternion.x, node.quaternion.y, node.quaternion.z, node.quaternion.w);
-        }
-        fbxBoneWorldQuats.set(node, wq);
-      });
-
-      // Debug – log key world quaternions to verify correctness
-      var _dbgBone = fbx.getObjectByName('mixamorigSpine') || fbx.getObjectByName('mixamorig:Spine');
-      if (_dbgBone) { var _dq = fbxBoneWorldQuats.get(_dbgBone); console.log('DBG Spine worldQuat:', _dq.x.toFixed(4), _dq.y.toFixed(4), _dq.z.toFixed(4), _dq.w.toFixed(4)); }
-      _dbgBone = fbx.getObjectByName('mixamorigLeftArm') || fbx.getObjectByName('mixamorig:LeftArm');
-      if (_dbgBone) { var _dq2 = fbxBoneWorldQuats.get(_dbgBone); console.log('DBG LeftArm worldQuat:', _dq2.x.toFixed(4), _dq2.y.toFixed(4), _dq2.z.toFixed(4), _dq2.w.toFixed(4)); }
+      if (!clip) return null;
 
       var tracks = [];
       var restRotationInverse = new THREE.Quaternion();
@@ -130,22 +100,11 @@
         if (!vrmNodeName || !mixamoRigNode) return;
 
         var propertyName = trackSplitted[1];
-        // Use pre-computed world quaternions (robust across THREE instances)
-        var _boneWQ = fbxBoneWorldQuats.get(mixamoRigNode);
-        if (_boneWQ) {
-          restRotationInverse.copy(_boneWQ).invert();
-        } else {
-          restRotationInverse.set(0, 0, 0, 1);
-        }
+        mixamoRigNode.getWorldQuaternion(restRotationInverse).invert();
         if (mixamoRigNode.parent) {
-          var _parentWQ = fbxBoneWorldQuats.get(mixamoRigNode.parent);
-          if (_parentWQ) {
-            parentRestWorldRotation.copy(_parentWQ);
-          } else {
-            parentRestWorldRotation.set(0, 0, 0, 1);
-          }
+          mixamoRigNode.parent.getWorldQuaternion(parentRestWorldRotation);
         } else {
-          parentRestWorldRotation.set(0, 0, 0, 1);
+          parentRestWorldRotation.identity();
         }
 
         if (track.ValueTypeName === 'quaternion') {
@@ -176,7 +135,6 @@
           ));
         }
       });
-      console.log('FBX tracks: ' + clip.tracks.length + ', mapped: ' + tracks.length);
       return new THREE.AnimationClip('vrmAnimation', clip.duration, tracks);
     }
 
