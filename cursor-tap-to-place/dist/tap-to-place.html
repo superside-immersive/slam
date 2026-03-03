@@ -33,29 +33,33 @@
       [class*="immersive-web"], [class*="webxr"] { display:none !important; }
       #info-banner {
         position:fixed; top:0; left:0; right:0;
-        background:rgba(0,0,0,0.85); color:#0f0;
-        font-family:monospace; font-size:13px;
+        background:rgba(0,0,0,0.88); color:#FF4500;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-size:13px; font-weight:500;
         padding:10px 15px; z-index:999999; line-height:1.6;
+        border-bottom: 2px solid #FF4500;
       }
-      #info-banner .warning { color:#ff0; }
-      #info-banner .ok { color:#0f0; }
-      #info-banner .tip { color:#0af; }
+      #info-banner .warning { color:#FFD700; }
+      #info-banner .ok { color:#FF4500; }
+      #info-banner .tip { color:#FF6B35; }
       #cursor-reticle {
         position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
-        background:rgba(0,0,0,0.7); color:#fff; font-family:sans-serif;
-        font-size:14px; padding:8px 18px; border-radius:20px;
+        background:rgba(255,69,0,0.88); color:#fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-size:14px; font-weight:500; padding:10px 22px; border-radius:24px;
         z-index:999999; pointer-events:none; transition:opacity 0.3s;
+        box-shadow:0 2px 12px rgba(255,69,0,0.4);
       }
       #gh-qr {
         position:fixed; bottom:12px; left:12px; z-index:999999;
-        background:rgba(255,255,255,0.92); border-radius:8px; padding:6px;
-        box-shadow:0 2px 8px rgba(0,0,0,0.3); pointer-events:auto;
+        background:rgba(255,255,255,0.95); border-radius:10px; padding:8px;
+        box-shadow:0 2px 12px rgba(255,69,0,0.3); pointer-events:auto;
+        border: 2px solid #FF4500;
       }
-      #gh-qr img { display:block; width:90px; height:90px; }
+      #gh-qr img { display:block; width:90px; height:90px; border-radius:4px; }
       #gh-qr span {
-        display:block; text-align:center; font-family:sans-serif;
-        font-size:8px; color:#333; margin-top:2px;
-      }</style></head><body><div id="info-banner"><span class="ok">Cargando...</span></div><div id="cursor-reticle">Toca la pantalla para colocar el modelo · Pellizca para escalar</div><div id="gh-qr"><a href="https://superside-immersive.github.io/slam/cursor-tap-to-place/dist/tap-to-place.html" target="_blank"><img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https%3A%2F%2Fsuperside-immersive.github.io%2Fslam%2Fcursor-tap-to-place%2Fdist%2Ftap-to-place.html" alt="QR GitHub Pages"> </a><span>GitHub Pages</span></div><script>const banner = document.getElementById('info-banner');
+        display:block; text-align:center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-size:9px; font-weight:600; color:#FF4500; margin-top:4px; letter-spacing:0.5px;
+      }</style></head><body><div id="info-banner"><span class="ok">Loading...</span></div><div id="cursor-reticle">Tap to place model · Pinch to scale</div><div id="gh-qr"><a href="https://superside-immersive.github.io/slam/cursor-tap-to-place/dist/tap-to-place.html" target="_blank"><img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https%3A%2F%2Fsuperside-immersive.github.io%2Fslam%2Fcursor-tap-to-place%2Fdist%2Ftap-to-place.html" alt="QR GitHub Pages"> </a><span>GitHub Pages</span></div><script>const banner = document.getElementById('info-banner');
       const reticleUI = document.getElementById('cursor-reticle');
       const setBanner = (html, autoHideMs = 0) => {
         banner.innerHTML = html; banner.style.display = 'block';
@@ -64,9 +68,9 @@
       let vrmReady = false, animReady = false;
       const updateLoadingBanner = () => {
         if (!vrmReady || !animReady)
-          setBanner('<span class="ok">Cargando modelo y animacion...</span>');
+          setBanner('<span class="ok">Loading model and animation...</span>');
         else
-          setBanner('<span class="ok">Listo - Toca para ubicar el modelo</span>', 3000);
+          setBanner('<span class="ok">Ready — Tap to place the model</span>', 3000);
       };
       window._setVrmReady = () => { vrmReady = true; updateLoadingBanner(); };
       window._setAnimReady = () => { animReady = true; updateLoadingBanner(); };
@@ -75,13 +79,13 @@
       window.addEventListener('xrloaded', () => {
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         if (isMobile) {
-          banner.innerHTML = '<span class="ok">MOVIL - SLAM activo</span>';
+          banner.innerHTML = '<span class="ok">MOBILE — SLAM active</span>';
           setTimeout(() => banner.style.display = 'none', 3000);
         } else {
           banner.innerHTML =
-            '<span class="ok">Engine XR8 cargado</span><br>' +
-            '<span class="warning">DESKTOP: preview simulado</span><br>' +
-            '<span class="tip">Para SLAM real: abri esta URL en el celu (HTTPS)</span>';
+            '<span class="ok">XR8 Engine loaded</span><br>' +
+            '<span class="warning">DESKTOP: simulated preview</span><br>' +
+            '<span class="tip">For real SLAM: open this URL on your phone (HTTPS)</span>';
         }
       });
 
@@ -384,7 +388,7 @@
             if (reticle) reticle.setAttribute('visible', 'false');
             const ui = document.getElementById('cursor-reticle');
             if (ui) {
-              ui.textContent = 'Pellizca para escalar · Toca para reubicar';
+              ui.textContent = 'Pinch to scale · Tap to reposition';
               ui.style.opacity = '0.6';
               setTimeout(() => { ui.style.opacity = '0'; }, 3000);
             }
