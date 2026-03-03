@@ -40,6 +40,12 @@ const config = {
       scriptLoading: 'blocking',
       inject: false,
     }),
+    new HtmlWebpackPlugin({
+      template: path.join(srcPath, 'tap-to-place.html'),
+      filename: 'tap-to-place.html',
+      scriptLoading: 'blocking',
+      inject: false,
+    }),
     new CopyWebpackPlugin({
       patterns: [
         {

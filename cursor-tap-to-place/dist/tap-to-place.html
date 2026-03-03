@@ -1,0 +1,460 @@
+<!doctype html><html><head><meta charset="utf-8"><title>VRM Tap-to-Place (A-Frame + SLAM)</title><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script><script async src="./xr-standalone/xr.js" data-preload-chunks="slam"></script><script>if (window.AFRAME && window.AFRAME.THREE) {
+        window.THREE = window.AFRAME.THREE;
+        console.log('THREE bridged from AFRAME.THREE');
+      }</script><script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script><script src="https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@1.0.9/lib/three-vrm.js"></script><script>let fbxResolve, fbxReject;
+      window.fbxLoaderReady = new Promise((resolve, reject) => {
+        fbxResolve = resolve; fbxReject = reject;
+      });
+      window._fbxLoaderResolve = fbxResolve;
+      window._fbxLoaderReject = fbxReject;</script><script type="importmap">{
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
+      }
+    }</script><script type="module">(async () => {
+        try {
+          const { FBXLoader } = await import('three/addons/loaders/FBXLoader.js');
+          window.FBXLoader = FBXLoader;
+          if (window._fbxLoaderResolve) window._fbxLoaderResolve(FBXLoader);
+          console.log('FBXLoader attached via module import');
+        } catch (error) {
+          if (window._fbxLoaderReject) window._fbxLoaderReject(error);
+          console.error('FBXLoader attach failed:', error);
+        }
+      })();</script><script>console.log('GLTFLoader attached:', !!THREE.GLTFLoader);
+      if (window.fbxLoaderReady && typeof window.fbxLoaderReady.then === 'function') {
+        window.fbxLoaderReady
+          .then(() => console.log('FBXLoader attached:', !!window.FBXLoader))
+          .catch((error) => console.error('FBXLoader attach failed:', error));
+      }</script><script>window.addEventListener('xrloaded', () => {
+        console.log('XR8 v' + XR8.version() + ' cargado');
+      });</script><style>html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000; }
+      .a-enter-vr, .a-enter-ar, .a-enter-vr-button, .a-enter-ar-button,
+      [class*="immersive-web"], [class*="webxr"] { display:none !important; }
+      #info-banner {
+        position:fixed; top:0; left:0; right:0;
+        background:rgba(0,0,0,0.85); color:#0f0;
+        font-family:monospace; font-size:13px;
+        padding:10px 15px; z-index:999999; line-height:1.6;
+      }
+      #info-banner .warning { color:#ff0; }
+      #info-banner .ok { color:#0f0; }
+      #info-banner .tip { color:#0af; }
+      #cursor-reticle {
+        position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+        background:rgba(0,0,0,0.7); color:#fff; font-family:sans-serif;
+        font-size:14px; padding:8px 18px; border-radius:20px;
+        z-index:999999; pointer-events:none; transition:opacity 0.3s;
+      }</style></head><body><div id="info-banner"><span class="ok">Cargando...</span></div><div id="cursor-reticle">Toca la pantalla para colocar el modelo · Pellizca para escalar</div><script>const banner = document.getElementById('info-banner');
+      const reticleUI = document.getElementById('cursor-reticle');
+      const setBanner = (html, autoHideMs = 0) => {
+        banner.innerHTML = html; banner.style.display = 'block';
+        if (autoHideMs > 0) setTimeout(() => (banner.style.display = 'none'), autoHideMs);
+      };
+      let vrmReady = false, animReady = false;
+      const updateLoadingBanner = () => {
+        if (!vrmReady || !animReady)
+          setBanner('<span class="ok">Cargando modelo y animacion...</span>');
+        else
+          setBanner('<span class="ok">Listo - Toca para ubicar el modelo</span>', 3000);
+      };
+      window._setVrmReady = () => { vrmReady = true; updateLoadingBanner(); };
+      window._setAnimReady = () => { animReady = true; updateLoadingBanner(); };
+      updateLoadingBanner();
+
+      window.addEventListener('xrloaded', () => {
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (isMobile) {
+          banner.innerHTML = '<span class="ok">MOVIL - SLAM activo</span>';
+          setTimeout(() => banner.style.display = 'none', 3000);
+        } else {
+          banner.innerHTML =
+            '<span class="ok">Engine XR8 cargado</span><br>' +
+            '<span class="warning">DESKTOP: preview simulado</span><br>' +
+            '<span class="tip">Para SLAM real: abri esta URL en el celu (HTTPS)</span>';
+        }
+      });
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const scene = document.querySelector('a-scene');
+        if (!scene) return;
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const disableXrWeb = () => {
+          if (scene.hasAttribute('xrweb')) scene.removeAttribute('xrweb');
+        };
+        if (!isMobile) {
+          const waitForAssets = () => {
+            if (vrmReady && animReady) disableXrWeb();
+            else setTimeout(waitForAssets, 300);
+          };
+          waitForAssets();
+        }
+        scene.addEventListener('camerastatuschange', (e) => {
+          if (e.detail.status === 'hasVideo')
+            setBanner('<span class="ok">WEBCAM + SLAM</span>', 3000);
+          if (e.detail.status === 'failed') disableXrWeb();
+        });
+      });</script><script>const MIXAMO_RIG_MAP = {
+        Hips:'hips', Spine:'spine', Spine1:'chest', Spine2:'upperChest',
+        Neck:'neck', Head:'head',
+        LeftShoulder:'leftShoulder', LeftArm:'leftUpperArm', LeftForeArm:'leftLowerArm', LeftHand:'leftHand',
+        LeftHandThumb1:'leftThumbMetacarpal', LeftHandThumb2:'leftThumbProximal', LeftHandThumb3:'leftThumbDistal',
+        LeftHandIndex1:'leftIndexProximal', LeftHandIndex2:'leftIndexIntermediate', LeftHandIndex3:'leftIndexDistal',
+        LeftHandMiddle1:'leftMiddleProximal', LeftHandMiddle2:'leftMiddleIntermediate', LeftHandMiddle3:'leftMiddleDistal',
+        LeftHandRing1:'leftRingProximal', LeftHandRing2:'leftRingIntermediate', LeftHandRing3:'leftRingDistal',
+        LeftHandPinky1:'leftLittleProximal', LeftHandPinky2:'leftLittleIntermediate', LeftHandPinky3:'leftLittleDistal',
+        RightShoulder:'rightShoulder', RightArm:'rightUpperArm', RightForeArm:'rightLowerArm', RightHand:'rightHand',
+        RightHandThumb1:'rightThumbMetacarpal', RightHandThumb2:'rightThumbProximal', RightHandThumb3:'rightThumbDistal',
+        RightHandIndex1:'rightIndexProximal', RightHandIndex2:'rightIndexIntermediate', RightHandIndex3:'rightIndexDistal',
+        RightHandMiddle1:'rightMiddleProximal', RightHandMiddle2:'rightMiddleIntermediate', RightHandMiddle3:'rightMiddleDistal',
+        RightHandRing1:'rightRingProximal', RightHandRing2:'rightRingIntermediate', RightHandRing3:'rightRingDistal',
+        RightHandPinky1:'rightLittleProximal', RightHandPinky2:'rightLittleIntermediate', RightHandPinky3:'rightLittleDistal',
+        LeftUpLeg:'leftUpperLeg', LeftLeg:'leftLowerLeg', LeftFoot:'leftFoot', LeftToeBase:'leftToes',
+        RightUpLeg:'rightUpperLeg', RightLeg:'rightLowerLeg', RightFoot:'rightFoot', RightToeBase:'rightToes',
+        mixamorigHips:'hips', mixamorigSpine:'spine', mixamorigSpine1:'chest', mixamorigSpine2:'upperChest',
+        mixamorigNeck:'neck', mixamorigHead:'head',
+        mixamorigLeftShoulder:'leftShoulder', mixamorigLeftArm:'leftUpperArm', mixamorigLeftForeArm:'leftLowerArm', mixamorigLeftHand:'leftHand',
+        mixamorigLeftHandThumb1:'leftThumbMetacarpal', mixamorigLeftHandThumb2:'leftThumbProximal', mixamorigLeftHandThumb3:'leftThumbDistal',
+        mixamorigLeftHandIndex1:'leftIndexProximal', mixamorigLeftHandIndex2:'leftIndexIntermediate', mixamorigLeftHandIndex3:'leftIndexDistal',
+        mixamorigLeftHandMiddle1:'leftMiddleProximal', mixamorigLeftHandMiddle2:'leftMiddleIntermediate', mixamorigLeftHandMiddle3:'leftMiddleDistal',
+        mixamorigLeftHandRing1:'leftRingProximal', mixamorigLeftHandRing2:'leftRingIntermediate', mixamorigLeftHandRing3:'leftRingDistal',
+        mixamorigLeftHandPinky1:'leftLittleProximal', mixamorigLeftHandPinky2:'leftLittleIntermediate', mixamorigLeftHandPinky3:'leftLittleDistal',
+        mixamorigRightShoulder:'rightShoulder', mixamorigRightArm:'rightUpperArm', mixamorigRightForeArm:'rightLowerArm', mixamorigRightHand:'rightHand',
+        mixamorigRightHandThumb1:'rightThumbMetacarpal', mixamorigRightHandThumb2:'rightThumbProximal', mixamorigRightHandThumb3:'rightThumbDistal',
+        mixamorigRightHandIndex1:'rightIndexProximal', mixamorigRightHandIndex2:'rightIndexIntermediate', mixamorigRightHandIndex3:'rightIndexDistal',
+        mixamorigRightHandMiddle1:'rightMiddleProximal', mixamorigRightHandMiddle2:'rightMiddleIntermediate', mixamorigRightHandMiddle3:'rightMiddleDistal',
+        mixamorigRightHandRing1:'rightRingProximal', mixamorigRightHandRing2:'rightRingIntermediate', mixamorigRightHandRing3:'rightRingDistal',
+        mixamorigRightHandPinky1:'rightLittleProximal', mixamorigRightHandPinky2:'rightLittleIntermediate', mixamorigRightHandPinky3:'rightLittleDistal',
+        mixamorigLeftUpLeg:'leftUpperLeg', mixamorigLeftLeg:'leftLowerLeg', mixamorigLeftFoot:'leftFoot', mixamorigLeftToeBase:'leftToes',
+        mixamorigRightUpLeg:'rightUpperLeg', mixamorigRightLeg:'rightLowerLeg', mixamorigRightFoot:'rightFoot', mixamorigRightToeBase:'rightToes'
+      };
+
+      const getThreeLoader = (name) =>
+        THREE?.[name] || window.AFRAME?.THREE?.[name] || window[name];
+
+      /* vrm-character — EXACT COPY from slam.html (working version) */
+      AFRAME.registerComponent('vrm-character', {
+        schema: {
+          model: { type: 'string' },
+          animation: { type: 'string' },
+          speed: { type: 'number', default: 0.8 }
+        },
+        init() {
+          this.vrm = null;
+          this.mixer = null;
+          this._loadVRM();
+        },
+        tick(time, delta) {
+          const dt = delta / 1000;
+          if (this.mixer) this.mixer.update(dt);
+          if (this.vrm) this.vrm.update(dt);
+        },
+        _loadVRM() {
+          if (!this.data.model) return;
+          const GLTFLoaderCtor = getThreeLoader('GLTFLoader');
+          if (!GLTFLoaderCtor) { console.error('GLTFLoader no disponible'); return; }
+          const loader = new GLTFLoaderCtor();
+          loader.register((parser) => new THREE.VRMLoaderPlugin(parser));
+          loader.load(
+            encodeURI(this.data.model),
+            (gltf) => {
+              const vrm = gltf.userData.vrm;
+              if (!vrm) { console.error('VRM not found'); return; }
+              if (THREE.VRMUtils?.removeUnnecessaryJoints) THREE.VRMUtils.removeUnnecessaryJoints(vrm.scene);
+              if (THREE.VRMUtils?.rotateVRM0) THREE.VRMUtils.rotateVRM0(vrm);
+              this.vrm = vrm;
+              this._prepareMaterials(vrm);
+              // Force VRM scene to local origin so it matches placement point
+              vrm.scene.position.set(0, 0, 0);
+              vrm.scene.updateMatrixWorld(true);
+              // Center horizontally: compute bounding box and offset X/Z
+              const box = new THREE.Box3().setFromObject(vrm.scene);
+              const center = box.getCenter(new THREE.Vector3());
+              vrm.scene.position.set(-center.x, -box.min.y, -center.z);
+              this.el.object3D.add(vrm.scene);
+              if (window._setVrmReady) window._setVrmReady();
+              this._loadAnimation();
+            },
+            undefined,
+            (err) => console.error('VRM load error:', err)
+          );
+        },
+        _prepareMaterials(vrm) {
+          vrm.scene.traverse((obj) => {
+            obj.frustumCulled = false;
+            if (!obj.isMesh) return;
+            obj.castShadow = true;
+            obj.receiveShadow = true;
+            const mat = obj.material;
+            if (!mat) return;
+            const n = (mat.name || '').toLowerCase();
+            const isHoodie = n === 'test' || n.includes('golden yellow') ||
+              n.includes('hoodie') || n.includes('hood') || n.includes('sweater') ||
+              n.includes('shirt') || n.includes('outfit') || n.includes('clothes') ||
+              mat.name === '09-Golden Yellow #FFBF0B GFAR.001' || mat.name === 'Test';
+            if (isHoodie) {
+              mat.map = null;
+              mat.color.setHex(0xffffff);
+              mat.roughness = 0.8;
+              mat.metalness = 0.0;
+              mat.emissive = new THREE.Color(0x000000);
+              mat.needsUpdate = true;
+            }
+          });
+          // VRM scene stays at local origin (0,0,0) so placement position matches
+          if (vrm.expressionManager) {
+            try { vrm.expressionManager.setValue('joy', 1.0); } catch(e) {}
+          }
+        },
+        async _loadAnimation() {
+          if (!this.data.animation || !this.vrm) return;
+          this.vrm.humanoid?.resetNormalizedPose();
+          let FBXLoaderCtor = getThreeLoader('FBXLoader');
+          if (!FBXLoaderCtor && window.fbxLoaderReady) {
+            try { await window.fbxLoaderReady; FBXLoaderCtor = getThreeLoader('FBXLoader'); }
+            catch(e) { console.error('FBXLoader unavailable:', e); return; }
+          }
+          if (!FBXLoaderCtor) { console.error('FBXLoader unavailable'); return; }
+          const fbxLoader = new FBXLoaderCtor();
+          fbxLoader.load(
+            encodeURI(this.data.animation),
+            (fbx) => {
+              const clip = this._convertMixamoAnimation(fbx);
+              if (!clip) { console.error('Animation conversion failed'); return; }
+              if (this.mixer) this.mixer.stopAllAction();
+              this.mixer = new THREE.AnimationMixer(this.vrm.scene);
+              const action = this.mixer.clipAction(clip);
+              action.setLoop(THREE.LoopRepeat, Infinity);
+              action.clampWhenFinished = false;
+              action.timeScale = this.data.speed;
+              action.play();
+              if (window._setAnimReady) window._setAnimReady();
+            },
+            undefined,
+            (err) => console.error('FBX load error:', err)
+          );
+        },
+        _convertMixamoAnimation(fbx) {
+          const clip = THREE.AnimationClip.findByName(fbx.animations, 'mixamo.com') || fbx.animations[0];
+          if (!clip) return null;
+          const tracks = [];
+          const restRotationInverse = new THREE.Quaternion();
+          const parentRestWorldRotation = new THREE.Quaternion();
+          const quatTemp = new THREE.Quaternion();
+          const vec3Temp = new THREE.Vector3();
+          const hipsNode = fbx.getObjectByName('mixamorigHips') || fbx.getObjectByName('mixamorig:Hips');
+          const motionHipsHeight = hipsNode ? hipsNode.position.y : null;
+          const vrmHipsY = this.vrm.humanoid?.getNormalizedBoneNode('hips')?.getWorldPosition(vec3Temp).y;
+          const vrmRootY = this.vrm.scene.getWorldPosition(vec3Temp).y;
+          const vrmHipsHeight = Math.abs(vrmHipsY - vrmRootY);
+          const hipsPositionScale = motionHipsHeight ? (vrmHipsHeight / motionHipsHeight) : 1;
+          clip.tracks.forEach((track) => {
+            const trackSplitted = track.name.split('.');
+            const mixamoRigName = trackSplitted[0];
+            const rigName = mixamoRigName.split('|').pop();
+            const cleanedRigName = rigName
+              .replace(/^mixamorig:/, '').replace(/^mixamorig_/, '').replace(/^mixamorig/, '');
+            const normalizedRigName = rigName.replace('mixamorig:', 'mixamorig');
+            const rigCandidates = [
+              rigName, mixamoRigName, normalizedRigName, cleanedRigName,
+              'mixamorig' + cleanedRigName, 'mixamorig:' + cleanedRigName
+            ];
+            const vrmBoneName = rigCandidates.map((n) => MIXAMO_RIG_MAP[n]).find(Boolean);
+            const vrmNodeName = this.vrm.humanoid?.getNormalizedBoneNode(vrmBoneName)?.name;
+            const mixamoRigNode = rigCandidates.map((n) => fbx.getObjectByName(n)).find(Boolean);
+            if (!vrmNodeName || !mixamoRigNode) return;
+            const propertyName = trackSplitted[1];
+            mixamoRigNode.getWorldQuaternion(restRotationInverse).invert();
+            if (mixamoRigNode.parent) {
+              mixamoRigNode.parent.getWorldQuaternion(parentRestWorldRotation);
+            } else {
+              parentRestWorldRotation.identity();
+            }
+            if (track.ValueTypeName === 'quaternion') {
+              for (let i = 0; i < track.values.length; i += 4) {
+                const fq = track.values.slice(i, i + 4);
+                quatTemp.fromArray(fq);
+                quatTemp.premultiply(parentRestWorldRotation).multiply(restRotationInverse);
+                quatTemp.toArray(fq);
+                fq.forEach((v, idx) => { track.values[idx + i] = v; });
+              }
+              tracks.push(new THREE.QuaternionKeyframeTrack(
+                vrmNodeName + '.' + propertyName, track.times,
+                track.values.map((v, i) =>
+                  this.vrm.meta?.metaVersion === '0' && i % 2 === 0 ? -v : v
+                )
+              ));
+            } else if (track.ValueTypeName === 'vector') {
+              const vals = track.values.map((v, i) =>
+                (this.vrm.meta?.metaVersion === '0' && i % 3 !== 1 ? -v : v) * hipsPositionScale
+              );
+              tracks.push(new THREE.VectorKeyframeTrack(
+                vrmNodeName + '.' + propertyName, track.times, vals
+              ));
+            }
+          });
+          return new THREE.AnimationClip('vrmAnimation', clip.duration, tracks);
+        }
+      });
+
+      /* ground-reticle — cyan ring that follows screen-center raycast to y=0 */
+      AFRAME.registerComponent('ground-reticle', {
+        init() {
+          this.raycaster = new THREE.Raycaster();
+          this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+          this.hitVec = new THREE.Vector3();
+          this.lerpTarget = new THREE.Vector3();
+          this.visible = true;
+        },
+        tick() {
+          const cam = this.el.sceneEl.camera;
+          if (!cam) return;
+          // Raycast from screen center
+          this.raycaster.setFromCamera({ x: 0, y: 0 }, cam);
+          if (this.raycaster.ray.intersectPlane(this.groundPlane, this.hitVec)) {
+            this.lerpTarget.copy(this.hitVec);
+            this.lerpTarget.y = 0.01; // tiny offset to avoid z-fighting
+            this.el.object3D.position.lerp(this.lerpTarget, 0.4);
+            if (!this.el.object3D.visible) this.el.object3D.visible = true;
+          }
+        },
+        hide() { this.el.object3D.visible = false; this.visible = false; },
+        show() { this.el.object3D.visible = true; this.visible = true; }
+      });
+
+      /* tap-to-place — raycast screen tap to y=0 ground, place VRM there */
+      AFRAME.registerComponent('tap-to-place', {
+        init() {
+          this.placed = false;
+          this.raycaster = new THREE.Raycaster();
+          this.el.object3D.visible = false;
+          this.onTap = this.onTap.bind(this);
+          this.onClick = this.onClick.bind(this);
+          const attach = () => {
+            if (this.el.sceneEl.canvas)
+              this.el.sceneEl.canvas.addEventListener('touchstart', this.onTap);
+            window.addEventListener('click', this.onClick);
+          };
+          if (this.el.sceneEl.hasLoaded) attach();
+          else this.el.sceneEl.addEventListener('loaded', attach);
+        },
+        remove() {
+          if (this.el.sceneEl.canvas)
+            this.el.sceneEl.canvas.removeEventListener('touchstart', this.onTap);
+          window.removeEventListener('click', this.onClick);
+        },
+        onTap(evt) {
+          if (!evt.touches || evt.touches.length < 1) return;
+          // Ignore multi-touch (pinch/rotate gestures)
+          if (evt.touches.length >= 2) return;
+          this._place(evt.touches[0].clientX, evt.touches[0].clientY);
+        },
+        onClick(evt) { this._place(evt.clientX, evt.clientY); },
+        _place(sx, sy) {
+          const scene = this.el.sceneEl;
+          const cam = scene.camera;
+          if (!cam) return;
+          const rect = scene.canvas.getBoundingClientRect();
+          const nx = ((sx - rect.left) / rect.width) * 2 - 1;
+          const ny = -((sy - rect.top) / rect.height) * 2 + 1;
+          this.raycaster.setFromCamera({ x: nx, y: ny }, cam);
+          const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+          const hit = new THREE.Vector3();
+          if (this.raycaster.ray.intersectPlane(ground, hit)) {
+            this.el.object3D.position.copy(hit);
+            this.el.object3D.visible = true;
+            this.placed = true;
+            // Face camera but only rotate Y so the VRM stays grounded
+            const cp = new THREE.Vector3();
+            cam.getWorldPosition(cp);
+            const angle = Math.atan2(cp.x - hit.x, cp.z - hit.z);
+            this.el.object3D.rotation.set(0, angle, 0);
+            // Hide or fade the reticle after first placement
+            const reticle = document.getElementById('ground-ring');
+            if (reticle) reticle.setAttribute('visible', 'false');
+            const ui = document.getElementById('cursor-reticle');
+            if (ui) {
+              ui.textContent = 'Pellizca para escalar · Toca para reubicar';
+              ui.style.opacity = '0.6';
+              setTimeout(() => { ui.style.opacity = '0'; }, 3000);
+            }
+          }
+        }
+      });
+
+      /* pinch-scale — two-finger pinch to scale + rotate the placed VRM */
+      AFRAME.registerComponent('pinch-scale', {
+        schema: {
+          minScale: { type: 'number', default: 0.2 },
+          maxScale: { type: 'number', default: 5.0 },
+          rotationFactor: { type: 'number', default: 3.0 }
+        },
+        init() {
+          this.initialSpread = 0;
+          this.initialScale = 1;
+          this.currentRotationY = 0;
+          this.onTouchStart = this.onTouchStart.bind(this);
+          this.onTouchMove = this.onTouchMove.bind(this);
+          this.onTouchEnd = this.onTouchEnd.bind(this);
+          const attach = () => {
+            const canvas = this.el.sceneEl.canvas;
+            if (canvas) {
+              canvas.addEventListener('touchstart', this.onTouchStart, { passive: false });
+              canvas.addEventListener('touchmove', this.onTouchMove, { passive: false });
+              canvas.addEventListener('touchend', this.onTouchEnd);
+            }
+          };
+          if (this.el.sceneEl.hasLoaded) attach();
+          else this.el.sceneEl.addEventListener('loaded', attach);
+        },
+        remove() {
+          const canvas = this.el.sceneEl.canvas;
+          if (canvas) {
+            canvas.removeEventListener('touchstart', this.onTouchStart);
+            canvas.removeEventListener('touchmove', this.onTouchMove);
+            canvas.removeEventListener('touchend', this.onTouchEnd);
+          }
+        },
+        _getSpread(touches) {
+          if (touches.length < 2) return 0;
+          const dx = touches[1].clientX - touches[0].clientX;
+          const dy = touches[1].clientY - touches[0].clientY;
+          return Math.sqrt(dx * dx + dy * dy);
+        },
+        _getMidAngle(touches) {
+          if (touches.length < 2) return 0;
+          return Math.atan2(
+            touches[1].clientY - touches[0].clientY,
+            touches[1].clientX - touches[0].clientX
+          );
+        },
+        onTouchStart(evt) {
+          if (evt.touches.length === 2) {
+            evt.preventDefault();
+            this.initialSpread = this._getSpread(evt.touches);
+            this.initialScale = this.el.object3D.scale.x;
+            this.initialAngle = this._getMidAngle(evt.touches);
+            this.initialRotY = this.currentRotationY;
+          }
+        },
+        onTouchMove(evt) {
+          if (evt.touches.length !== 2 || this.initialSpread <= 0) return;
+          evt.preventDefault();
+          // Pinch-to-scale
+          const spread = this._getSpread(evt.touches);
+          const ratio = spread / this.initialSpread;
+          let newScale = this.initialScale * ratio;
+          newScale = Math.max(this.data.minScale, Math.min(this.data.maxScale, newScale));
+          this.el.object3D.scale.set(newScale, newScale, newScale);
+          // Two-finger rotation
+          const angle = this._getMidAngle(evt.touches);
+          const angleDelta = angle - this.initialAngle;
+          this.currentRotationY = this.initialRotY - angleDelta * this.data.rotationFactor;
+          this.el.object3D.rotation.y = this.currentRotationY;
+        },
+        onTouchEnd(evt) {
+          if (evt.touches.length < 2) {
+            this.initialSpread = 0;
+          }
+        }
+      });</script><a-scene xrweb="disableWorldTracking: false; allowedDevices: any" vr-mode-ui="enabled: false" renderer="colorManagement: true" loading-screen="enabled: false"><a-entity light="type: ambient; intensity: 0.8"></a-entity><a-entity light="type: directional; intensity: 0.6" position="-1 2 1"></a-entity><a-image id="ground-ring" ground-reticle src="./assets/RDDT.png" rotation="-90 0 0" width="0.6" height="0.6" material="shader: flat; transparent: true; opacity: 0.85"></a-image><a-entity id="snoo-vrm" scale="0.9 0.9 0.9" tap-to-place pinch-scale="minScale: 0.2; maxScale: 5.0; rotationFactor: 3.0" vrm-character="model: ./redditslides/public/finalsnoo.vrm; animation: ./redditslides/public/reddit-animation/animations/Step Hip Hop Dance.fbx; speed: 0.8"></a-entity><a-camera position="0 1.2 0"></a-camera></a-scene></body></html>
