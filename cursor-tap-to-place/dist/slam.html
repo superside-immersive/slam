@@ -1,0 +1,516 @@
+<!doctype html><html><head><meta charset="utf-8"><title>8th Wall SLAM - World Effects</title><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script><script async src="./xr-standalone/xr.js" data-preload-chunks="slam"></script><script>// Bridge AFRAME.THREE to window.THREE so UMD loaders can find it
+      if (window.AFRAME && window.AFRAME.THREE) {
+        window.THREE = window.AFRAME.THREE;
+        console.log('✅ THREE bridged from AFRAME.THREE');
+      }</script><script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script><script src="https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@1.0.9/lib/three-vrm.js"></script><script>let fbxResolve;
+      let fbxReject;
+      window.fbxLoaderReady = new Promise((resolve, reject) => {
+        fbxResolve = resolve;
+        fbxReject = reject;
+      });
+      window._fbxLoaderResolve = fbxResolve;
+      window._fbxLoaderReject = fbxReject;</script><script type="importmap">{
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
+        }
+      }</script><script type="module">(async () => {
+        try {
+          const { FBXLoader } = await import('three/addons/loaders/FBXLoader.js');
+          window.FBXLoader = FBXLoader;
+          if (window._fbxLoaderResolve) {
+            window._fbxLoaderResolve(FBXLoader);
+          }
+          console.log('✅ FBXLoader attached via module import');
+        } catch (error) {
+          if (window._fbxLoaderReject) {
+            window._fbxLoaderReject(error);
+          }
+          console.error('FBXLoader attach failed:', error);
+        }
+      })();</script><script>console.log('GLTFLoader attached:', !!THREE.GLTFLoader);
+      if (window.fbxLoaderReady && typeof window.fbxLoaderReady.then === 'function') {
+        window.fbxLoaderReady
+          .then(() => console.log('FBXLoader attached:', !!window.FBXLoader))
+          .catch((error) => console.error('FBXLoader attach failed:', error));
+      } else {
+        console.warn('FBXLoader promise not ready for logging');
+      }</script><script>window.addEventListener('xrloaded', () => {
+        console.log('✅ XR8 v' + XR8.version() + ' cargado');
+        console.log('✅ XrController:', !!XR8.XrController);
+      });</script><style>html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+      /* Ocultar botón VR de A-Frame y del Immersive Web Emulator */
+      .a-enter-vr, .a-enter-ar,
+      .a-enter-vr-button, .a-enter-ar-button,
+      [class*="immersive-web"], [class*="webxr"] {
+        display: none !important;
+      }
+      #info-banner {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: rgba(0,0,0,0.85);
+        color: #0f0;
+        font-family: monospace;
+        font-size: 13px;
+        padding: 10px 15px;
+        z-index: 999999;
+        line-height: 1.6;
+      }
+      #info-banner .warning { color: #ff0; }
+      #info-banner .ok { color: #0f0; }
+      #info-banner .tip { color: #0af; }</style></head><body><div id="info-banner"><span class="ok">Cargando...</span></div><script>const banner = document.getElementById('info-banner');
+      const setBanner = (html, autoHideMs = 0) => {
+        banner.innerHTML = html;
+        banner.style.display = 'block';
+        if (autoHideMs > 0) {
+          setTimeout(() => (banner.style.display = 'none'), autoHideMs);
+        }
+      };
+
+      let vrmReady = false;
+      let animReady = false;
+      const updateLoadingBanner = () => {
+        if (!vrmReady || !animReady) {
+          setBanner('<span class="ok">⏳ Cargando modelo y animacion...</span>');
+        } else {
+          setBanner('<span class="ok">✅ Listo</span>', 1500);
+        }
+      };
+      window._setVrmReady = () => {
+        vrmReady = true;
+        updateLoadingBanner();
+      };
+      window._setAnimReady = () => {
+        animReady = true;
+        updateLoadingBanner();
+      };
+      updateLoadingBanner();
+      
+      window.addEventListener('xrloaded', () => {
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+          banner.innerHTML = '<span class="ok">✅ MÓVIL DETECTADO — Webcam + SLAM activo!</span>';
+          setTimeout(() => banner.style.display = 'none', 3000);
+        } else {
+          banner.innerHTML = 
+            '<span class="ok">✅ Engine XR8 cargado</span><br>' +
+            '<span class="warning">⚠️ DESKTOP: Estás viendo el entorno 3D simulado (preview)</span><br>' +
+            '<span class="tip">📱 Para webcam + SLAM real: abrí esta URL en tu celular via HTTPS (ngrok)</span><br>' +
+            '<span class="tip">🖱️ Usá el mouse para moverte: click+arrastrá para rotar, scroll para zoom</span>';
+        }
+      });
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const scene = document.querySelector('a-scene');
+        if (!scene) return;
+
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const disableXrWeb = () => {
+          if (scene.hasAttribute('xrweb')) {
+            scene.removeAttribute('xrweb');
+            console.warn('⚠️ XRWeb disabled due to camera failure');
+          }
+        };
+
+        if (!isMobile) {
+          // Keep SLAM on mobile; only disable XR on desktop after assets are ready.
+          const waitForAssets = () => {
+            if (vrmReady && animReady) {
+              disableXrWeb();
+            } else {
+              setTimeout(waitForAssets, 300);
+            }
+          };
+          waitForAssets();
+        }
+
+        scene.addEventListener('camerastatuschange', (e) => {
+          console.log('📷 Camera status:', e.detail.status);
+          if (e.detail.status === 'hasVideo') {
+            setBanner('<span class="ok">✅ WEBCAM ACTIVA + SLAM TRACKING</span>', 3000);
+          }
+          if (e.detail.status === 'failed') {
+            disableXrWeb();
+          }
+        });
+        scene.addEventListener('realityready', () => console.log('✅ Reality ready'));
+        scene.addEventListener('realityerror', (e) => {
+          console.error('❌ Error:', e.detail);
+          banner.innerHTML = '<span style="color:red">❌ Error: ' + JSON.stringify(e.detail) + '</span>';
+        });
+      });</script><script>const MIXAMO_RIG_MAP = {
+        Hips: 'hips',
+        Spine: 'spine',
+        Spine1: 'chest',
+        Spine2: 'upperChest',
+        Neck: 'neck',
+        Head: 'head',
+        LeftShoulder: 'leftShoulder',
+        LeftArm: 'leftUpperArm',
+        LeftForeArm: 'leftLowerArm',
+        LeftHand: 'leftHand',
+        LeftHandThumb1: 'leftThumbMetacarpal',
+        LeftHandThumb2: 'leftThumbProximal',
+        LeftHandThumb3: 'leftThumbDistal',
+        LeftHandIndex1: 'leftIndexProximal',
+        LeftHandIndex2: 'leftIndexIntermediate',
+        LeftHandIndex3: 'leftIndexDistal',
+        LeftHandMiddle1: 'leftMiddleProximal',
+        LeftHandMiddle2: 'leftMiddleIntermediate',
+        LeftHandMiddle3: 'leftMiddleDistal',
+        LeftHandRing1: 'leftRingProximal',
+        LeftHandRing2: 'leftRingIntermediate',
+        LeftHandRing3: 'leftRingDistal',
+        LeftHandPinky1: 'leftLittleProximal',
+        LeftHandPinky2: 'leftLittleIntermediate',
+        LeftHandPinky3: 'leftLittleDistal',
+        RightShoulder: 'rightShoulder',
+        RightArm: 'rightUpperArm',
+        RightForeArm: 'rightLowerArm',
+        RightHand: 'rightHand',
+        RightHandThumb1: 'rightThumbMetacarpal',
+        RightHandThumb2: 'rightThumbProximal',
+        RightHandThumb3: 'rightThumbDistal',
+        RightHandIndex1: 'rightIndexProximal',
+        RightHandIndex2: 'rightIndexIntermediate',
+        RightHandIndex3: 'rightIndexDistal',
+        RightHandMiddle1: 'rightMiddleProximal',
+        RightHandMiddle2: 'rightMiddleIntermediate',
+        RightHandMiddle3: 'rightMiddleDistal',
+        RightHandRing1: 'rightRingProximal',
+        RightHandRing2: 'rightRingIntermediate',
+        RightHandRing3: 'rightRingDistal',
+        RightHandPinky1: 'rightLittleProximal',
+        RightHandPinky2: 'rightLittleIntermediate',
+        RightHandPinky3: 'rightLittleDistal',
+        LeftUpLeg: 'leftUpperLeg',
+        LeftLeg: 'leftLowerLeg',
+        LeftFoot: 'leftFoot',
+        LeftToeBase: 'leftToes',
+        RightUpLeg: 'rightUpperLeg',
+        RightLeg: 'rightLowerLeg',
+        RightFoot: 'rightFoot',
+        RightToeBase: 'rightToes',
+        mixamorigHips: 'hips',
+        mixamorigSpine: 'spine',
+        mixamorigSpine1: 'chest',
+        mixamorigSpine2: 'upperChest',
+        mixamorigNeck: 'neck',
+        mixamorigHead: 'head',
+        mixamorigLeftShoulder: 'leftShoulder',
+        mixamorigLeftArm: 'leftUpperArm',
+        mixamorigLeftForeArm: 'leftLowerArm',
+        mixamorigLeftHand: 'leftHand',
+        mixamorigLeftHandThumb1: 'leftThumbMetacarpal',
+        mixamorigLeftHandThumb2: 'leftThumbProximal',
+        mixamorigLeftHandThumb3: 'leftThumbDistal',
+        mixamorigLeftHandIndex1: 'leftIndexProximal',
+        mixamorigLeftHandIndex2: 'leftIndexIntermediate',
+        mixamorigLeftHandIndex3: 'leftIndexDistal',
+        mixamorigLeftHandMiddle1: 'leftMiddleProximal',
+        mixamorigLeftHandMiddle2: 'leftMiddleIntermediate',
+        mixamorigLeftHandMiddle3: 'leftMiddleDistal',
+        mixamorigLeftHandRing1: 'leftRingProximal',
+        mixamorigLeftHandRing2: 'leftRingIntermediate',
+        mixamorigLeftHandRing3: 'leftRingDistal',
+        mixamorigLeftHandPinky1: 'leftLittleProximal',
+        mixamorigLeftHandPinky2: 'leftLittleIntermediate',
+        mixamorigLeftHandPinky3: 'leftLittleDistal',
+        mixamorigRightShoulder: 'rightShoulder',
+        mixamorigRightArm: 'rightUpperArm',
+        mixamorigRightForeArm: 'rightLowerArm',
+        mixamorigRightHand: 'rightHand',
+        mixamorigRightHandThumb1: 'rightThumbMetacarpal',
+        mixamorigRightHandThumb2: 'rightThumbProximal',
+        mixamorigRightHandThumb3: 'rightThumbDistal',
+        mixamorigRightHandIndex1: 'rightIndexProximal',
+        mixamorigRightHandIndex2: 'rightIndexIntermediate',
+        mixamorigRightHandIndex3: 'rightIndexDistal',
+        mixamorigRightHandMiddle1: 'rightMiddleProximal',
+        mixamorigRightHandMiddle2: 'rightMiddleIntermediate',
+        mixamorigRightHandMiddle3: 'rightMiddleDistal',
+        mixamorigRightHandRing1: 'rightRingProximal',
+        mixamorigRightHandRing2: 'rightRingIntermediate',
+        mixamorigRightHandRing3: 'rightRingDistal',
+        mixamorigRightHandPinky1: 'rightLittleProximal',
+        mixamorigRightHandPinky2: 'rightLittleIntermediate',
+        mixamorigRightHandPinky3: 'rightLittleDistal',
+        mixamorigLeftUpLeg: 'leftUpperLeg',
+        mixamorigLeftLeg: 'leftLowerLeg',
+        mixamorigLeftFoot: 'leftFoot',
+        mixamorigLeftToeBase: 'leftToes',
+        mixamorigRightUpLeg: 'rightUpperLeg',
+        mixamorigRightLeg: 'rightLowerLeg',
+        mixamorigRightFoot: 'rightFoot',
+        mixamorigRightToeBase: 'rightToes'
+      };
+
+      const getThreeLoader = (name) => {
+        return (
+          THREE?.[name] ||
+          window.AFRAME?.THREE?.[name] ||
+          window[name]
+        );
+      };
+
+      AFRAME.registerComponent('vrm-character', {
+        schema: {
+          model: { type: 'string' },
+          animation: { type: 'string' },
+          speed: { type: 'number', default: 0.8 }
+        },
+        init() {
+          this.vrm = null;
+          this.mixer = null;
+          this._loadVRM();
+        },
+        tick(time, delta) {
+          const deltaSeconds = delta / 1000;
+          if (this.mixer) {
+            this.mixer.update(deltaSeconds);
+          }
+          if (this.vrm) {
+            this.vrm.update(deltaSeconds);
+          }
+        },
+        _loadVRM() {
+          if (!this.data.model) {
+            return;
+          }
+
+          const GLTFLoaderCtor = getThreeLoader('GLTFLoader');
+          if (!GLTFLoaderCtor) {
+            console.error('GLTFLoader no disponible');
+            return;
+          }
+          const loader = new GLTFLoaderCtor();
+          loader.register((parser) => new THREE.VRMLoaderPlugin(parser));
+
+          loader.load(
+            encodeURI(this.data.model),
+            (gltf) => {
+              const vrm = gltf.userData.vrm;
+              if (!vrm) {
+                console.error('VRM no encontrado en el GLTF');
+                return;
+              }
+
+              if (THREE.VRMUtils?.removeUnnecessaryJoints) {
+                THREE.VRMUtils.removeUnnecessaryJoints(vrm.scene);
+              }
+              if (THREE.VRMUtils?.rotateVRM0) {
+                THREE.VRMUtils.rotateVRM0(vrm);
+              }
+
+              this.vrm = vrm;
+              this._prepareMaterials(vrm);
+              this.el.object3D.add(vrm.scene);
+              if (window._setVrmReady) {
+                window._setVrmReady();
+              }
+              this._loadAnimation();
+            },
+            undefined,
+            (error) => {
+              console.error('Error cargando VRM:', error);
+            }
+          );
+        },
+        _prepareMaterials(vrm) {
+          vrm.scene.traverse((object) => {
+            object.frustumCulled = false;
+            if (!object.isMesh) {
+              return;
+            }
+
+            object.castShadow = true;
+            object.receiveShadow = true;
+
+            const material = object.material;
+            if (!material) {
+              return;
+            }
+
+            const name = (material.name || '').toLowerCase();
+            const isHoodie =
+              name === 'test' ||
+              name.includes('golden yellow') ||
+              name.includes('hoodie') ||
+              name.includes('hood') ||
+              name.includes('sweater') ||
+              name.includes('shirt') ||
+              name.includes('outfit') ||
+              name.includes('clothes') ||
+              material.name === '09-Golden Yellow #FFBF0B GFAR.001' ||
+              material.name === 'Test';
+
+            if (isHoodie) {
+              material.map = null;
+              material.color.setHex(0xffffff);
+              material.roughness = 0.8;
+              material.metalness = 0.0;
+              material.emissive = new THREE.Color(0x000000);
+              material.needsUpdate = true;
+            }
+          });
+
+          vrm.scene.rotation.y = Math.PI;
+          if (vrm.expressionManager) {
+            try {
+              vrm.expressionManager.setValue('joy', 1.0);
+            } catch (e) {
+              // Ignore missing expression
+            }
+          }
+        },
+        async _loadAnimation() {
+          if (!this.data.animation || !this.vrm) {
+            return;
+          }
+
+          this.vrm.humanoid?.resetNormalizedPose();
+          let FBXLoaderCtor = getThreeLoader('FBXLoader');
+          if (!FBXLoaderCtor && window.fbxLoaderReady) {
+            try {
+              await window.fbxLoaderReady;
+              FBXLoaderCtor = getThreeLoader('FBXLoader');
+            } catch (error) {
+              console.error('FBXLoader no disponible:', error);
+              return;
+            }
+          }
+          if (!FBXLoaderCtor) {
+            console.error('FBXLoader no disponible');
+            return;
+          }
+          const fbxLoader = new FBXLoaderCtor();
+
+          fbxLoader.load(
+            encodeURI(this.data.animation),
+            (fbx) => {
+              const clip = this._convertMixamoAnimation(fbx);
+              if (!clip) {
+                console.error('No se pudo convertir la animacion');
+                return;
+              }
+
+              if (this.mixer) {
+                this.mixer.stopAllAction();
+              }
+              this.mixer = new THREE.AnimationMixer(this.vrm.scene);
+              const action = this.mixer.clipAction(clip);
+              action.setLoop(THREE.LoopRepeat, Infinity);
+              action.clampWhenFinished = false;
+              action.timeScale = this.data.speed;
+              action.play();
+              if (window._setAnimReady) {
+                window._setAnimReady();
+              }
+            },
+            undefined,
+            (error) => {
+              console.error('Error cargando animacion:', error);
+            }
+          );
+        },
+        _convertMixamoAnimation(fbx) {
+          const clip = THREE.AnimationClip.findByName(fbx.animations, 'mixamo.com') || fbx.animations[0];
+          if (!clip) {
+            return null;
+          }
+
+          const tracks = [];
+          const restRotationInverse = new THREE.Quaternion();
+          const parentRestWorldRotation = new THREE.Quaternion();
+          const quatTemp = new THREE.Quaternion();
+          const vec3Temp = new THREE.Vector3();
+
+          const hipsNode =
+            fbx.getObjectByName('mixamorigHips') ||
+            fbx.getObjectByName('mixamorig:Hips');
+          const motionHipsHeight = hipsNode ? hipsNode.position.y : null;
+          const vrmHipsY = this.vrm.humanoid?.getNormalizedBoneNode('hips')?.getWorldPosition(vec3Temp).y;
+          const vrmRootY = this.vrm.scene.getWorldPosition(vec3Temp).y;
+          const vrmHipsHeight = Math.abs(vrmHipsY - vrmRootY);
+          const hipsPositionScale = motionHipsHeight ? (vrmHipsHeight / motionHipsHeight) : 1;
+
+          clip.tracks.forEach((track) => {
+            const trackSplitted = track.name.split('.');
+            const mixamoRigName = trackSplitted[0];
+            const rigName = mixamoRigName.split('|').pop();
+            const cleanedRigName = rigName
+              .replace(/^mixamorig:/, '')
+              .replace(/^mixamorig_/, '')
+              .replace(/^mixamorig/, '');
+            const normalizedRigName = rigName.replace('mixamorig:', 'mixamorig');
+            const rigCandidates = [
+              rigName,
+              mixamoRigName,
+              normalizedRigName,
+              cleanedRigName,
+              `mixamorig${cleanedRigName}`,
+              `mixamorig:${cleanedRigName}`
+            ];
+            const vrmBoneName = rigCandidates.map((name) => MIXAMO_RIG_MAP[name]).find(Boolean);
+            const vrmNodeName = this.vrm.humanoid?.getNormalizedBoneNode(vrmBoneName)?.name;
+            const mixamoRigNode = rigCandidates.map((name) => fbx.getObjectByName(name)).find(Boolean);
+
+            if (!vrmNodeName || !mixamoRigNode) {
+              return;
+            }
+
+            const propertyName = trackSplitted[1];
+            mixamoRigNode.getWorldQuaternion(restRotationInverse).invert();
+            if (mixamoRigNode.parent) {
+              mixamoRigNode.parent.getWorldQuaternion(parentRestWorldRotation);
+            } else {
+              parentRestWorldRotation.identity();
+            }
+
+            if (track.ValueTypeName === 'quaternion') {
+              for (let i = 0; i < track.values.length; i += 4) {
+                const flatQuaternion = track.values.slice(i, i + 4);
+                quatTemp.fromArray(flatQuaternion);
+                quatTemp.premultiply(parentRestWorldRotation).multiply(restRotationInverse);
+                quatTemp.toArray(flatQuaternion);
+                flatQuaternion.forEach((value, index) => {
+                  track.values[index + i] = value;
+                });
+              }
+
+              tracks.push(
+                new THREE.QuaternionKeyframeTrack(
+                  `${vrmNodeName}.${propertyName}`,
+                  track.times,
+                  track.values.map((value, index) =>
+                    this.vrm.meta?.metaVersion === '0' && index % 2 === 0 ? -value : value
+                  )
+                )
+              );
+            } else if (track.ValueTypeName === 'vector') {
+              const values = track.values.map((value, index) =>
+                (this.vrm.meta?.metaVersion === '0' && index % 3 !== 1 ? -value : value) * hipsPositionScale
+              );
+              tracks.push(
+                new THREE.VectorKeyframeTrack(
+                  `${vrmNodeName}.${propertyName}`,
+                  track.times,
+                  values
+                )
+              );
+            }
+          });
+          console.log(`FBX tracks: ${clip.tracks.length}, mapped: ${tracks.length}`);
+          return new THREE.AnimationClip('vrmAnimation', clip.duration, tracks);
+        }
+      });</script><a-scene xrweb="disableWorldTracking: false; allowedDevices: any" vr-mode-ui="enabled: false" renderer="colorManagement: true" loading-screen="enabled: false"><a-entity light="type: ambient; intensity: 0.8"></a-entity><a-entity light="type: directional; intensity: 0.6" position="-1 2 1"></a-entity><a-entity id="snoo-vrm" position="1 0 -2" scale="0.9 0.9 0.9" vrm-character="model: ./redditslides/public/finalsnoo.vrm; animation: ./redditslides/public/reddit-animation/animations/Step Hip Hop Dance.fbx; speed: 0.8"></a-entity><a-cylinder position="-1 0.4 -2" radius="0.05" height="0.16" color="#7BC8A4" animation="property: position; to: -1 0.8 -2; dir: alternate; loop: true; dur: 2000; easing: easeInOutQuad"></a-cylinder><a-camera position="0 1.2 0"></a-camera></a-scene></body></html>
