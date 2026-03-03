@@ -8,6 +8,9 @@
     <!-- 1. A-Frame ANTES del engine -->
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
 
+    <!-- XR Extras - provides gesture detection and manipulation components -->
+    <script src="//cdn.8thwall.com/web/xrextras/xrextras.js"></script>
+
     <!-- 2. 8th Wall Engine (standalone binary) - async + preload slam -->
     <script async src="./xr-standalone/xr.js" data-preload-chunks="slam"></script>
 
@@ -571,7 +574,12 @@
       });
     </script>
 
+    <!-- Tap to place component -->
+    <script src="tap-place.js"></script>
+
     <a-scene
+      tap-place
+      xrextras-gesture-detector
       xrweb="disableWorldTracking: false; allowedDevices: any"
       vr-mode-ui="enabled: false"
       renderer="colorManagement: true"
@@ -581,23 +589,33 @@
       <a-entity light="type: ambient; intensity: 0.8"></a-entity>
       <a-entity light="type: directional; intensity: 0.6" position="-1 2 1"></a-entity>
 
+      <!-- Ground plane for tap-to-place -->
+      <a-box
+        id="ground"
+        class="cantap"
+        scale="1000 1 1000"
+        position="0 -1 0"
+        material="color: #bb0000; transparent: true; opacity: 0"
+        shadow>
+      </a-box>
+
       <!-- Snoo VRM animado -->
       <a-entity
         id="snoo-vrm"
-        position="1 0 -2"
+        class="cantap"
+        position="0 -1 -2"
         scale="0.9 0.9 0.9"
-        vrm-character="model: ./redditslides/public/finalsnoo.vrm; animation: ./redditslides/public/reddit-animation/animations/Step Hip Hop Dance.fbx; speed: 0.8">
+        vrm-character="model: ./redditslides/public/finalsnoo.vrm; animation: ./redditslides/public/reddit-animation/animations/Step Hip Hop Dance.fbx; speed: 0.8"
+        xrextras-pinch-scale="min: 0.3; max: 2.0"
+        xrextras-two-finger-rotate>
       </a-entity>
 
-      <!-- Cilindro verde flotante -->
-      <a-cylinder
-        position="-1 0.4 -2"
-        radius="0.05" height="0.16"
-        color="#7BC8A4"
-        animation="property: position; to: -1 0.8 -2; dir: alternate; loop: true; dur: 2000; easing: easeInOutQuad">
-      </a-cylinder>
-
-      <a-camera position="0 1.2 0"></a-camera>
+      <a-camera
+        id="camera"
+        position="0 1.2 0"
+        raycaster="objects: .cantap"
+        cursor="fuse: false; rayOrigin: mouse;">
+      </a-camera>
     </a-scene>
 
   </body>
