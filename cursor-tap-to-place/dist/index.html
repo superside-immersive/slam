@@ -1,0 +1,285 @@
+<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>cursor-tap-to-place</title><meta itemprop="name" content="cursor-tap-to-place"><meta name="twitter:title" content="cursor-tap-to-place"><meta property="og:title" content="cursor-tap-to-place"><meta property="og:site_name" content="cursor-tap-to-place"><meta name="description" content=""><meta itemprop="description" content=""><meta property="og:description" content=""><meta name="twitter:description" content=""><script type="importmap">{
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
+    }
+  }</script><script crossorigin="anonymous" src="./external/runtime/runtime.js"></script><script crossorigin="anonymous" src="./external/xr/xr.js" async="true" data-preload-chunks="face, slam"></script><script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/loaders/GLTFLoader.js"></script><script src="https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@1.0.9/lib/three-vrm.js"></script><script>let fbxResolve, fbxReject;
+    window.fbxLoaderReady = new Promise((resolve, reject) => {
+      fbxResolve = resolve;
+      fbxReject = reject;
+    });
+    window._fbxLoaderResolve = fbxResolve;
+    window._fbxLoaderReject = fbxReject;</script><script type="module">try {
+      const { FBXLoader } = await import('three/addons/loaders/FBXLoader.js');
+      window.FBXLoader = FBXLoader;
+      window._fbxLoaderResolve(FBXLoader);
+      console.log('✅ FBXLoader attached via module import');
+    } catch (error) {
+      window._fbxLoaderReject(error);
+      console.error('FBXLoader attach failed:', error);
+    }</script><script>window.vrmState = { loaded: false };
+
+    // ── Mixamo → VRM bone name map ──
+    var MIXAMO_RIG_MAP = {
+      Hips:'hips', Spine:'spine', Spine1:'chest', Spine2:'upperChest',
+      Neck:'neck', Head:'head',
+      LeftShoulder:'leftShoulder', LeftArm:'leftUpperArm', LeftForeArm:'leftLowerArm', LeftHand:'leftHand',
+      LeftHandThumb1:'leftThumbMetacarpal', LeftHandThumb2:'leftThumbProximal', LeftHandThumb3:'leftThumbDistal',
+      LeftHandIndex1:'leftIndexProximal', LeftHandIndex2:'leftIndexIntermediate', LeftHandIndex3:'leftIndexDistal',
+      LeftHandMiddle1:'leftMiddleProximal', LeftHandMiddle2:'leftMiddleIntermediate', LeftHandMiddle3:'leftMiddleDistal',
+      LeftHandRing1:'leftRingProximal', LeftHandRing2:'leftRingIntermediate', LeftHandRing3:'leftRingDistal',
+      LeftHandPinky1:'leftLittleProximal', LeftHandPinky2:'leftLittleIntermediate', LeftHandPinky3:'leftLittleDistal',
+      RightShoulder:'rightShoulder', RightArm:'rightUpperArm', RightForeArm:'rightLowerArm', RightHand:'rightHand',
+      RightHandThumb1:'rightThumbMetacarpal', RightHandThumb2:'rightThumbProximal', RightHandThumb3:'rightThumbDistal',
+      RightHandIndex1:'rightIndexProximal', RightHandIndex2:'rightIndexIntermediate', RightHandIndex3:'rightIndexDistal',
+      RightHandMiddle1:'rightMiddleProximal', RightHandMiddle2:'rightMiddleIntermediate', RightHandMiddle3:'rightMiddleDistal',
+      RightHandRing1:'rightRingProximal', RightHandRing2:'rightRingIntermediate', RightHandRing3:'rightRingDistal',
+      RightHandPinky1:'rightLittleProximal', RightHandPinky2:'rightLittleIntermediate', RightHandPinky3:'rightLittleDistal',
+      LeftUpLeg:'leftUpperLeg', LeftLeg:'leftLowerLeg', LeftFoot:'leftFoot', LeftToeBase:'leftToes',
+      RightUpLeg:'rightUpperLeg', RightLeg:'rightLowerLeg', RightFoot:'rightFoot', RightToeBase:'rightToes',
+      mixamorigHips:'hips', mixamorigSpine:'spine', mixamorigSpine1:'chest', mixamorigSpine2:'upperChest',
+      mixamorigNeck:'neck', mixamorigHead:'head',
+      mixamorigLeftShoulder:'leftShoulder', mixamorigLeftArm:'leftUpperArm', mixamorigLeftForeArm:'leftLowerArm', mixamorigLeftHand:'leftHand',
+      mixamorigLeftHandThumb1:'leftThumbMetacarpal', mixamorigLeftHandThumb2:'leftThumbProximal', mixamorigLeftHandThumb3:'leftThumbDistal',
+      mixamorigLeftHandIndex1:'leftIndexProximal', mixamorigLeftHandIndex2:'leftIndexIntermediate', mixamorigLeftHandIndex3:'leftIndexDistal',
+      mixamorigLeftHandMiddle1:'leftMiddleProximal', mixamorigLeftHandMiddle2:'leftMiddleIntermediate', mixamorigLeftHandMiddle3:'leftMiddleDistal',
+      mixamorigLeftHandRing1:'leftRingProximal', mixamorigLeftHandRing2:'leftRingIntermediate', mixamorigLeftHandRing3:'leftRingDistal',
+      mixamorigLeftHandPinky1:'leftLittleProximal', mixamorigLeftHandPinky2:'leftLittleIntermediate', mixamorigLeftHandPinky3:'leftLittleDistal',
+      mixamorigRightShoulder:'rightShoulder', mixamorigRightArm:'rightUpperArm', mixamorigRightForeArm:'rightLowerArm', mixamorigRightHand:'rightHand',
+      mixamorigRightHandThumb1:'rightThumbMetacarpal', mixamorigRightHandThumb2:'rightThumbProximal', mixamorigRightHandThumb3:'rightThumbDistal',
+      mixamorigRightHandIndex1:'rightIndexProximal', mixamorigRightHandIndex2:'rightIndexIntermediate', mixamorigRightHandIndex3:'rightIndexDistal',
+      mixamorigRightHandMiddle1:'rightMiddleProximal', mixamorigRightHandMiddle2:'rightMiddleIntermediate', mixamorigRightHandMiddle3:'rightMiddleDistal',
+      mixamorigRightHandRing1:'rightRingProximal', mixamorigRightHandRing2:'rightRingIntermediate', mixamorigRightHandRing3:'rightRingDistal',
+      mixamorigRightHandPinky1:'rightLittleProximal', mixamorigRightHandPinky2:'rightLittleIntermediate', mixamorigRightHandPinky3:'rightLittleDistal',
+      mixamorigLeftUpLeg:'leftUpperLeg', mixamorigLeftLeg:'leftLowerLeg', mixamorigLeftFoot:'leftFoot', mixamorigLeftToeBase:'leftToes',
+      mixamorigRightUpLeg:'rightUpperLeg', mixamorigRightLeg:'rightLowerLeg', mixamorigRightFoot:'rightFoot', mixamorigRightToeBase:'rightToes'
+    };
+
+    // ── Retarget Mixamo FBX animation to VRM humanoid bones ──
+    function convertMixamoAnimation(fbx, vrm) {
+      var clip = THREE.AnimationClip.findByName(fbx.animations, 'mixamo.com') || fbx.animations[0];
+      if (!clip) { console.error('No animation clip found in FBX'); return null; }
+
+      // Pre-compute world quaternions for ALL FBX bones by composing local
+      // quaternions top-down (parent before child via traverse).  This avoids
+      // getWorldQuaternion() which depends on matrixWorld update machinery that
+      // behaves differently between the ESM three@0.158.0 FBXLoader and the
+      // 8th Wall runtime's bundled THREE (cross-instance matrix staleness).
+      var fbxBoneWorldQuats = new Map();
+      fbx.traverse(function(node) {
+        var wq = new THREE.Quaternion();
+        var pWQ = node.parent ? fbxBoneWorldQuats.get(node.parent) : null;
+        if (pWQ) {
+          var ax = pWQ.x, ay = pWQ.y, az = pWQ.z, aw = pWQ.w;
+          var bx = node.quaternion.x, by = node.quaternion.y, bz = node.quaternion.z, bw = node.quaternion.w;
+          wq.set(
+            ax * bw + aw * bx + ay * bz - az * by,
+            ay * bw + aw * by + az * bx - ax * bz,
+            az * bw + aw * bz + ax * by - ay * bx,
+            aw * bw - ax * bx - ay * by - az * bz
+          );
+        } else {
+          wq.set(node.quaternion.x, node.quaternion.y, node.quaternion.z, node.quaternion.w);
+        }
+        fbxBoneWorldQuats.set(node, wq);
+      });
+
+      // Debug – log key world quaternions to verify correctness
+      var _dbgBone = fbx.getObjectByName('mixamorigSpine') || fbx.getObjectByName('mixamorig:Spine');
+      if (_dbgBone) { var _dq = fbxBoneWorldQuats.get(_dbgBone); console.log('DBG Spine worldQuat:', _dq.x.toFixed(4), _dq.y.toFixed(4), _dq.z.toFixed(4), _dq.w.toFixed(4)); }
+      _dbgBone = fbx.getObjectByName('mixamorigLeftArm') || fbx.getObjectByName('mixamorig:LeftArm');
+      if (_dbgBone) { var _dq2 = fbxBoneWorldQuats.get(_dbgBone); console.log('DBG LeftArm worldQuat:', _dq2.x.toFixed(4), _dq2.y.toFixed(4), _dq2.z.toFixed(4), _dq2.w.toFixed(4)); }
+
+      var tracks = [];
+      var restRotationInverse = new THREE.Quaternion();
+      var parentRestWorldRotation = new THREE.Quaternion();
+      var quatTemp = new THREE.Quaternion();
+      var vec3Temp = new THREE.Vector3();
+
+      var hipsNode = fbx.getObjectByName('mixamorigHips') || fbx.getObjectByName('mixamorig:Hips');
+      var motionHipsHeight = hipsNode ? hipsNode.position.y : null;
+      var vrmHipsY = vrm.humanoid && vrm.humanoid.getNormalizedBoneNode('hips')
+        ? vrm.humanoid.getNormalizedBoneNode('hips').getWorldPosition(vec3Temp).y : 0;
+      var vrmRootY = vrm.scene.getWorldPosition(vec3Temp).y;
+      var vrmHipsHeight = Math.abs(vrmHipsY - vrmRootY);
+      var hipsPositionScale = motionHipsHeight ? (vrmHipsHeight / motionHipsHeight) : 1;
+
+      clip.tracks.forEach(function(track) {
+        var trackSplitted = track.name.split('.');
+        var mixamoRigName = trackSplitted[0];
+        var rigName = mixamoRigName.split('|').pop();
+        var cleanedRigName = rigName
+          .replace(/^mixamorig:/, '')
+          .replace(/^mixamorig_/, '')
+          .replace(/^mixamorig/, '');
+        var normalizedRigName = rigName.replace('mixamorig:', 'mixamorig');
+        var rigCandidates = [rigName, mixamoRigName, normalizedRigName, cleanedRigName,
+          'mixamorig' + cleanedRigName, 'mixamorig:' + cleanedRigName];
+        var vrmBoneName = null;
+        for (var c = 0; c < rigCandidates.length; c++) {
+          if (MIXAMO_RIG_MAP[rigCandidates[c]]) { vrmBoneName = MIXAMO_RIG_MAP[rigCandidates[c]]; break; }
+        }
+        var vrmNodeName = vrm.humanoid && vrm.humanoid.getNormalizedBoneNode(vrmBoneName)
+          ? vrm.humanoid.getNormalizedBoneNode(vrmBoneName).name : null;
+        var mixamoRigNode = null;
+        for (var c = 0; c < rigCandidates.length; c++) {
+          mixamoRigNode = fbx.getObjectByName(rigCandidates[c]);
+          if (mixamoRigNode) break;
+        }
+
+        if (!vrmNodeName || !mixamoRigNode) return;
+
+        var propertyName = trackSplitted[1];
+        // Use pre-computed world quaternions (robust across THREE instances)
+        var _boneWQ = fbxBoneWorldQuats.get(mixamoRigNode);
+        if (_boneWQ) {
+          restRotationInverse.copy(_boneWQ).invert();
+        } else {
+          restRotationInverse.set(0, 0, 0, 1);
+        }
+        if (mixamoRigNode.parent) {
+          var _parentWQ = fbxBoneWorldQuats.get(mixamoRigNode.parent);
+          if (_parentWQ) {
+            parentRestWorldRotation.copy(_parentWQ);
+          } else {
+            parentRestWorldRotation.set(0, 0, 0, 1);
+          }
+        } else {
+          parentRestWorldRotation.set(0, 0, 0, 1);
+        }
+
+        if (track.ValueTypeName === 'quaternion') {
+          for (var i = 0; i < track.values.length; i += 4) {
+            var flatQuaternion = track.values.slice(i, i + 4);
+            quatTemp.fromArray(flatQuaternion);
+            quatTemp.premultiply(parentRestWorldRotation).multiply(restRotationInverse);
+            quatTemp.toArray(flatQuaternion);
+            flatQuaternion.forEach(function(value, index) {
+              track.values[index + i] = value;
+            });
+          }
+          tracks.push(new THREE.QuaternionKeyframeTrack(
+            vrmNodeName + '.' + propertyName,
+            track.times,
+            track.values.map(function(value, index) {
+              return vrm.meta && vrm.meta.metaVersion === '0' && index % 2 === 0 ? -value : value;
+            })
+          ));
+        } else if (track.ValueTypeName === 'vector') {
+          var values = track.values.map(function(value, index) {
+            return (vrm.meta && vrm.meta.metaVersion === '0' && index % 3 !== 1 ? -value : value) * hipsPositionScale;
+          });
+          tracks.push(new THREE.VectorKeyframeTrack(
+            vrmNodeName + '.' + propertyName,
+            track.times,
+            values
+          ));
+        }
+      });
+      console.log('FBX tracks: ' + clip.tracks.length + ', mapped: ' + tracks.length);
+      return new THREE.AnimationClip('vrmAnimation', clip.duration, tracks);
+    }
+
+    // ── Prepare materials (hoodie white, face forward, expression) ──
+    function prepareMaterials(vrm) {
+      vrm.scene.traverse(function(object) {
+        object.frustumCulled = false;
+        if (!object.isMesh) return;
+        object.castShadow = true;
+        object.receiveShadow = true;
+        var material = object.material;
+        if (!material) return;
+        var name = (material.name || '').toLowerCase();
+        var isHoodie =
+          name === 'test' ||
+          name.includes('golden yellow') ||
+          name.includes('hoodie') ||
+          name.includes('hood') ||
+          name.includes('sweater') ||
+          name.includes('shirt') ||
+          name.includes('outfit') ||
+          name.includes('clothes') ||
+          material.name === '09-Golden Yellow #FFBF0B GFAR.001' ||
+          material.name === 'Test';
+        if (isHoodie) {
+          material.map = null;
+          material.color.setHex(0xffffff);
+          material.roughness = 0.8;
+          material.metalness = 0.0;
+          material.emissive = new THREE.Color(0x000000);
+          material.needsUpdate = true;
+        }
+      });
+      vrm.scene.rotation.y = Math.PI;
+      if (vrm.expressionManager) {
+        try { vrm.expressionManager.setValue('joy', 1.0); } catch (e) { /* ignore */ }
+      }
+    }
+
+    // ── Load VRM ──
+    console.log('✅ THREE version:', THREE.REVISION);
+    console.log('✅ GLTFLoader:', !!THREE.GLTFLoader);
+    console.log('✅ VRMLoaderPlugin:', !!THREE.VRMLoaderPlugin);
+
+    var gltfLoader = new THREE.GLTFLoader();
+    gltfLoader.register(function(parser) { return new THREE.VRMLoaderPlugin(parser); });
+
+    gltfLoader.load(
+      './assets/finalsnoo.vrm',
+      function(gltf) {
+        var vrm = gltf.userData.vrm;
+        if (!vrm) {
+          console.error('VRM: gltf.userData.vrm is undefined');
+          window.vrmState = { loaded: false, error: 'Not a VRM file' };
+          return;
+        }
+        console.log('✅ VRM loaded, meta:', vrm.meta);
+
+        // Same cleanup as working version
+        if (THREE.VRMUtils && THREE.VRMUtils.removeUnnecessaryJoints) {
+          THREE.VRMUtils.removeUnnecessaryJoints(vrm.scene);
+        }
+        if (THREE.VRMUtils && THREE.VRMUtils.rotateVRM0) {
+          THREE.VRMUtils.rotateVRM0(vrm);
+        }
+
+        prepareMaterials(vrm);
+        window.vrmState = { loaded: true, vrm: vrm };
+        console.log('✅ VRM ready:', vrm.meta ? vrm.meta.name || 'unnamed' : 'unnamed');
+
+        // Wait for FBXLoader module to be available
+        window.fbxLoaderReady.then(function(FBXLoaderCtor) {
+          var fbxLoader = new FBXLoaderCtor();
+          fbxLoader.load('./assets/dance.fbx', function(fbx) {
+            console.log('✅ FBX loaded, animations:', fbx.animations.length);
+            // Reset normalized pose right before conversion so VRM bones are in T-pose
+            if (vrm.humanoid && vrm.humanoid.resetNormalizedPose) {
+              vrm.humanoid.resetNormalizedPose();
+            }
+            var clip = convertMixamoAnimation(fbx, vrm);
+            if (!clip) { console.error('Could not convert Mixamo animation'); return; }
+            console.log('VRM meta version:', vrm.meta ? vrm.meta.metaVersion : 'unknown');
+
+            var mixer = new THREE.AnimationMixer(vrm.scene);
+            var action = mixer.clipAction(clip);
+            action.setLoop(THREE.LoopRepeat, Infinity);
+            action.clampWhenFinished = false;
+            action.timeScale = 0.8;
+            action.play();
+            window.vrmState.mixer = mixer;
+            window.vrmState.animLoaded = true;
+            console.log('✅ Dance animation loaded and playing, tracks:', clip.tracks.length);
+          }, undefined, function(err) { console.error('FBX load error:', err); });
+        }).catch(function(err) { console.error('FBXLoader not available:', err); });
+      },
+      function(progress) {
+        var pct = progress.total > 0
+          ? ((progress.loaded / progress.total) * 100).toFixed(0) + '%'
+          : progress.loaded + ' bytes';
+        console.log('VRM loading:', pct);
+      },
+      function(error) {
+        console.error('VRM load error:', error);
+        window.vrmState = { loaded: false, error: error };
+      }
+    );</script></head><body><script src="bundle.js"></script></body></html>

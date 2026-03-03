@@ -1,0 +1,290 @@
+{
+  "activeCamera": "a608ddd9-9379-464d-966f-5d8d8674c83c",
+  "objects": {
+    "47699d9e-18a5-4f88-a4f9-b8be92e8f74a": {
+      "components": {},
+      "geometry": null,
+      "id": "47699d9e-18a5-4f88-a4f9-b8be92e8f74a",
+      "light": {
+        "type": "ambient"
+      },
+      "material": null,
+      "name": "Ambient Light",
+      "position": [
+        10,
+        5,
+        5
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "order": 0.34901540481363447
+    },
+    "a608ddd9-9379-464d-966f-5d8d8674c83c": {
+      "camera": {
+        "type": "perspective",
+        "xr": {
+          "desktop": "disabled",
+          "xrCameraType": "world",
+          "headset": "AR",
+          "phone": "AR"
+        }
+      },
+      "components": {
+        "f8c73efd-694c-49bf-a2bf-aff48a9f64c8": {
+          "id": "f8c73efd-694c-49bf-a2bf-aff48a9f64c8",
+          "name": "cursor-tap-to-place",
+          "parameters": {
+            "ground": {
+              "type": "entity",
+              "id": "a8d85a82-a7a8-4888-a7a3-80b134cf94a2"
+            },
+            "cursorEntity": {
+              "type": "entity",
+              "id": "76767860-c576-41d4-a34b-08908f980f4f"
+            },
+            "placedEntity": {
+              "type": "entity",
+              "id": "f86c1a66-8d1c-497f-93a0-51afdd14a428"
+            },
+            "growOnPlace": false,
+            "yHeight": 0.01
+          }
+        }
+      },
+      "geometry": null,
+      "id": "a608ddd9-9379-464d-966f-5d8d8674c83c",
+      "material": null,
+      "name": "Camera",
+      "position": [
+        0,
+        5.202330467552535,
+        6.820029855918676
+      ],
+      "rotation": [
+        -1.8412919444518387e-17,
+        0.9537169517857893,
+        -0.30070579621354565,
+        -5.839832572618051e-17
+      ],
+      "scale": [
+        0.9999998646558023,
+        0.9999999931513284,
+        0.9999998715044741
+      ],
+      "order": 1.3490154048136345
+    },
+    "ac1989e3-3b71-49e2-a05f-e682aeb18c36": {
+      "components": {},
+      "geometry": null,
+      "id": "ac1989e3-3b71-49e2-a05f-e682aeb18c36",
+      "light": {
+        "intensity": 1,
+        "type": "directional"
+      },
+      "material": null,
+      "name": "Directional Light",
+      "position": [
+        20,
+        20,
+        10
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "order": 2.3490154048136347
+    },
+    "a8d85a82-a7a8-4888-a7a3-80b134cf94a2": {
+      "id": "a8d85a82-a7a8-4888-a7a3-80b134cf94a2",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        -0.7071068,
+        0,
+        0,
+        0.7071068
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "geometry": {
+        "type": "plane",
+        "width": 1000,
+        "height": 1000
+      },
+      "material": {
+        "type": "shadow",
+        "color": "#000000",
+        "opacity": 0.7,
+        "depthTest": true,
+        "depthWrite": true
+      },
+      "components": {},
+      "name": "Ground",
+      "shadow": {
+        "receiveShadow": true,
+        "castShadow": false
+      },
+      "order": 3.3490154048136347
+    },
+    "48984a46-879e-4281-8be6-d2e78c22af38": {
+      "id": "48984a46-879e-4281-8be6-d2e78c22af38",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "geometry": null,
+      "material": null,
+      "components": {
+        "b737a691-9e1b-40b7-bd75-581d0beac96d": {
+          "id": "b737a691-9e1b-40b7-bd75-581d0beac96d",
+          "name": "gesture-components",
+          "parameters": {
+            "rotationFactor": 5,
+            "groundEntity": {
+              "type": "entity",
+              "id": "a8d85a82-a7a8-4888-a7a3-80b134cf94a2"
+            }
+          }
+        },
+        "c5a1f2b3-8d4e-4a9f-b7c2-3e6f1a8d5b9e": {
+          "id": "c5a1f2b3-8d4e-4a9f-b7c2-3e6f1a8d5b9e",
+          "name": "vrm-model",
+          "parameters": {
+            "yOffset": 0
+          }
+        }
+      },
+      "name": "VRM Avatar",
+      "order": 5.349015404813635,
+      "parentId": "f86c1a66-8d1c-497f-93a0-51afdd14a428"
+    },
+    "bee1336d-c190-459f-aded-8de9b4253bfd": {
+      "id": "bee1336d-c190-459f-aded-8de9b4253bfd",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        -0.707106799999999,
+        0,
+        0,
+        0.7071067623730954
+      ],
+      "scale": [
+        1,
+        1.0000000532124818,
+        1.0000000532124818
+      ],
+      "geometry": {
+        "type": "plane",
+        "width": 1,
+        "height": 1
+      },
+      "material": {
+        "type": "basic",
+        "color": "#ffffff",
+        "textureSrc": "assets/RDDT.png",
+        "depthWrite": false,
+        "opacity": 0.9,
+        "forceTransparent": true
+      },
+      "components": {},
+      "name": "Cursor",
+      "order": 6.698030809627269,
+      "parentId": "76767860-c576-41d4-a34b-08908f980f4f"
+    },
+    "f86c1a66-8d1c-497f-93a0-51afdd14a428": {
+      "id": "f86c1a66-8d1c-497f-93a0-51afdd14a428",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "geometry": null,
+      "material": null,
+      "components": {},
+      "name": "Placement Container",
+      "order": 8.30911511373332,
+      "hidden": true
+    },
+    "76767860-c576-41d4-a34b-08908f980f4f": {
+      "id": "76767860-c576-41d4-a34b-08908f980f4f",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        1.1102229584507075e-16,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "geometry": null,
+      "material": null,
+      "components": {},
+      "name": "Cursor Container",
+      "order": 5.362588986082056,
+      "hidden": true
+    }
+  },
+  "runtimeVersion": {
+    "type": "version",
+    "level": "major",
+    "major": 2,
+    "minor": 0,
+    "patch": 1
+  },
+  "historyVersion": "mm3xaru2"
+}
