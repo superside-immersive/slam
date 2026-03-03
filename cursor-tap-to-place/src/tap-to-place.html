@@ -84,12 +84,28 @@
         font-size:14px; padding:8px 18px; border-radius:20px;
         z-index:999999; pointer-events:none; transition:opacity 0.3s;
       }
+      #gh-qr {
+        position:fixed; bottom:12px; left:12px; z-index:999999;
+        background:rgba(255,255,255,0.92); border-radius:8px; padding:6px;
+        box-shadow:0 2px 8px rgba(0,0,0,0.3); pointer-events:auto;
+      }
+      #gh-qr img { display:block; width:90px; height:90px; }
+      #gh-qr span {
+        display:block; text-align:center; font-family:sans-serif;
+        font-size:8px; color:#333; margin-top:2px;
+      }
     </style>
   </head>
 
   <body>
     <div id="info-banner"><span class="ok">Cargando...</span></div>
     <div id="cursor-reticle">Toca la pantalla para colocar el modelo · Pellizca para escalar</div>
+    <div id="gh-qr">
+      <a href="https://superside-immersive.github.io/slam/cursor-tap-to-place/dist/tap-to-place.html" target="_blank">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https%3A%2F%2Fsuperside-immersive.github.io%2Fslam%2Fcursor-tap-to-place%2Fdist%2Ftap-to-place.html" alt="QR GitHub Pages">
+      </a>
+      <span>GitHub Pages</span>
+    </div>
 
     <script>
       const banner = document.getElementById('info-banner');
