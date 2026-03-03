@@ -214,7 +214,7 @@
               // Center horizontally: compute bounding box and offset X/Z
               const box = new THREE.Box3().setFromObject(vrm.scene);
               const center = box.getCenter(new THREE.Vector3());
-              vrm.scene.position.set(-center.x, -box.min.y, -center.z);
+              vrm.scene.position.set(-center.x, -box.min.y, -center.z + 0.15);
               this.el.object3D.add(vrm.scene);
               if (window._setVrmReady) window._setVrmReady();
               this._loadAnimation();
