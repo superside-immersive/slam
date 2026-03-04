@@ -247,6 +247,7 @@
         init() {
           this.vrm = null;
           this.mixer = null;
+          this.shadowReceiver = null;
           this._loadVRM();
         },
         tick(time, delta) {
@@ -277,6 +278,7 @@
               const center = box.getCenter(new THREE.Vector3());
               vrm.scene.position.set(-center.x, -box.min.y, -center.z);
               this.el.object3D.add(vrm.scene);
+              this._addShadowReceiver();
               if (window._setVrmReady) window._setVrmReady();
               this._loadAnimation();
             },
@@ -310,6 +312,18 @@
           if (vrm.expressionManager) {
             try { vrm.expressionManager.setValue('joy', 1.0); } catch(e) {}
           }
+        },
+        _addShadowReceiver() {
+          if (this.shadowReceiver) return;
+          const geometry = new THREE.PlaneGeometry(2.0, 2.0);
+          const material = new THREE.ShadowMaterial({ opacity: 0.28 });
+          const plane = new THREE.Mesh(geometry, material);
+          plane.rotation.x = -Math.PI / 2;
+          plane.position.set(0, 0.002, 0);
+          plane.receiveShadow = true;
+          plane.renderOrder = -1;
+          this.el.object3D.add(plane);
+          this.shadowReceiver = plane;
         },
         async _loadAnimation() {
           if (!this.data.animation || !this.vrm) return;
@@ -579,11 +593,14 @@
     <a-scene
       xrweb="disableWorldTracking: false; allowedDevices: any"
       vr-mode-ui="enabled: false"
-      renderer="colorManagement: true"
+      renderer="colorManagement: true; shadowMapEnabled: true; shadowMapType: pcfsoft"
       loading-screen="enabled: false">
 
       <a-entity light="type: ambient; intensity: 0.8"></a-entity>
-      <a-entity light="type: directional; intensity: 0.6" position="-1 2 1"></a-entity>
+      <a-entity
+        light="type: directional; intensity: 0.9; castShadow: true; shadowBias: -0.0002; shadowMapWidth: 1024; shadowMapHeight: 1024; shadowCameraTop: 3; shadowCameraRight: 3; shadowCameraBottom: -3; shadowCameraLeft: -3; shadowCameraFar: 10"
+        position="-1 2 1">
+      </a-entity>
 
       <!-- Ground placement reticle (RDDT image) -->
       <a-image
