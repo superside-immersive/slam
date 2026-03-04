@@ -275,7 +275,7 @@
               // Center horizontally: compute bounding box and offset X/Z
               const box = new THREE.Box3().setFromObject(vrm.scene);
               const center = box.getCenter(new THREE.Vector3());
-              vrm.scene.position.set(-center.x, -box.min.y, -center.z + 0.15);
+              vrm.scene.position.set(-center.x, -box.min.y, -center.z);
               this.el.object3D.add(vrm.scene);
               if (window._setVrmReady) window._setVrmReady();
               this._loadAnimation();
@@ -390,9 +390,14 @@
                 )
               ));
             } else if (track.ValueTypeName === 'vector') {
-              const vals = track.values.map((v, i) =>
-                (this.vrm.meta?.metaVersion === '0' && i % 3 !== 1 ? -v : v) * hipsPositionScale
-              );
+              const vals = track.values.map((v, i) => {
+                const axis = i % 3;
+                let value = (this.vrm.meta?.metaVersion === '0' && axis !== 1 ? -v : v) * hipsPositionScale;
+                if (vrmBoneName === 'hips' && propertyName === 'position' && axis !== 1) {
+                  value = 0;
+                }
+                return value;
+              });
               tracks.push(new THREE.VectorKeyframeTrack(
                 vrmNodeName + '.' + propertyName, track.times, vals
               ));
@@ -459,13 +464,22 @@
           const scene = this.el.sceneEl;
           const cam = scene.camera;
           if (!cam) return;
-          const rect = scene.canvas.getBoundingClientRect();
-          const nx = ((sx - rect.left) / rect.width) * 2 - 1;
-          const ny = -((sy - rect.top) / rect.height) * 2 + 1;
-          this.raycaster.setFromCamera({ x: nx, y: ny }, cam);
-          const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
           const hit = new THREE.Vector3();
-          if (this.raycaster.ray.intersectPlane(ground, hit)) {
+          const reticle = document.getElementById('ground-ring');
+          let hasHit = false;
+          if (reticle && reticle.object3D && reticle.getAttribute('visible') !== false) {
+            reticle.object3D.getWorldPosition(hit);
+            hit.y = 0;
+            hasHit = true;
+          } else {
+            const rect = scene.canvas.getBoundingClientRect();
+            const nx = ((sx - rect.left) / rect.width) * 2 - 1;
+            const ny = -((sy - rect.top) / rect.height) * 2 + 1;
+            this.raycaster.setFromCamera({ x: nx, y: ny }, cam);
+            const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+            hasHit = this.raycaster.ray.intersectPlane(ground, hit);
+          }
+          if (hasHit) {
             this.el.object3D.position.copy(hit);
             this.el.object3D.visible = true;
             this.placed = true;
@@ -474,9 +488,6 @@
             cam.getWorldPosition(cp);
             const angle = Math.atan2(cp.x - hit.x, cp.z - hit.z);
             this.el.object3D.rotation.set(0, angle, 0);
-            // Hide or fade the reticle after first placement
-            const reticle = document.getElementById('ground-ring');
-            if (reticle) reticle.setAttribute('visible', 'false');
             const ui = document.getElementById('cursor-reticle');
             if (ui) {
               ui.textContent = 'Pinch to scale · Tap to reposition';
