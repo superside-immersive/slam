@@ -100,21 +100,6 @@
         align-items: center;
         gap: 12px;
       }
-      .mode-btn {
-        min-width: 66px;
-        height: 32px;
-        border-radius: 16px;
-        border: 1px solid rgba(255,255,255,0.45);
-        background: rgba(0,0,0,0.45);
-        color: #fff;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-      }
-      .mode-btn.active {
-        background: rgba(255,69,0,0.9);
-        border-color: #fff;
-      }
       #snap-btn {
         width:68px; height:68px; border-radius:50%;
         background:#FF4500; border:4px solid #fff;
@@ -180,11 +165,9 @@
       </a>
     </div>
     <div id="capture-controls">
-      <button id="mode-photo" class="mode-btn active" type="button">Photo</button>
-      <button id="snap-btn" title="Capture" type="button">
+      <button id="snap-btn" title="Tap for photo · Hold for video" type="button">
         <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2 7.17 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3.17L15 2H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
       </button>
-      <button id="mode-video" class="mode-btn" type="button">Video</button>
     </div>
 
     <div id="preview-modal">
@@ -205,9 +188,9 @@
       qrExportImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=https%3A%2F%2Fsuperside-immersive.github.io%2Fslam%2Fcursor-tap-to-place%2Fdist%2Ftap-to-place.html';
 
       const captureState = {
-        mode: 'photo',
         isRecording: false,
         mediaRecorder: null,
+        videoMime: '',
         chunks: [],
         rafId: null,
         composedCanvas: null,
@@ -218,22 +201,12 @@
       };
 
       const snapBtn = document.getElementById('snap-btn');
-      const modePhotoBtn = document.getElementById('mode-photo');
-      const modeVideoBtn = document.getElementById('mode-video');
       const previewModal = document.getElementById('preview-modal');
       const previewImg = document.getElementById('preview-media');
       const previewVideo = document.getElementById('preview-video');
       const previewShareBtn = document.getElementById('preview-share');
       const previewSaveBtn = document.getElementById('preview-save');
       const previewCloseBtn = document.getElementById('preview-close');
-
-      const setMode = (mode) => {
-        captureState.mode = mode;
-        modePhotoBtn.classList.toggle('active', mode === 'photo');
-        modeVideoBtn.classList.toggle('active', mode === 'video');
-      };
-      modePhotoBtn.addEventListener('click', () => setMode('photo'));
-      modeVideoBtn.addEventListener('click', () => setMode('video'));
 
       const ensureComposer = (sceneCanvas) => {
         if (!captureState.composedCanvas) {
@@ -292,8 +265,9 @@
       };
 
       const shareBlob = async (blob, type) => {
-        const ext = type === 'image' ? 'png' : 'webm';
-        const mime = type === 'image' ? 'image/png' : 'video/webm';
+        const isMP4 = type !== 'image' && (captureState.videoMime || '').includes('mp4');
+        const ext = type === 'image' ? 'png' : isMP4 ? 'mp4' : 'webm';
+        const mime = type === 'image' ? 'image/png' : isMP4 ? 'video/mp4' : 'video/webm';
         const file = new File([blob], `snoo-ar-${Date.now()}.${ext}`, { type: mime });
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({ files: [file], title: 'Snoo AR' });
@@ -310,7 +284,8 @@
       previewCloseBtn.addEventListener('click', closePreview);
       previewSaveBtn.addEventListener('click', () => {
         if (!captureState.previewBlob) return;
-        downloadBlob(captureState.previewBlob, captureState.previewType === 'image' ? 'png' : 'webm');
+        const isMP4save = captureState.previewType !== 'image' && (captureState.videoMime || '').includes('mp4');
+        downloadBlob(captureState.previewBlob, captureState.previewType === 'image' ? 'png' : isMP4save ? 'mp4' : 'webm');
       });
       previewShareBtn.addEventListener('click', async () => {
         if (!captureState.previewBlob) return;
@@ -345,12 +320,18 @@
         drawComposedFrame(scene.canvas);
         const stream = captureState.composedCanvas.captureStream(30);
         captureState.chunks = [];
-        captureState.mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8,opus' });
+        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+          ? 'video/webm;codecs=vp8,opus'
+          : MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')
+          ? 'video/mp4;codecs=avc1'
+          : '';
+        captureState.videoMime = mimeType || 'video/webm';
+        captureState.mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
         captureState.mediaRecorder.ondataavailable = (evt) => {
           if (evt.data && evt.data.size > 0) captureState.chunks.push(evt.data);
         };
         captureState.mediaRecorder.onstop = () => {
-          const blob = new Blob(captureState.chunks, { type: 'video/webm' });
+          const blob = new Blob(captureState.chunks, { type: captureState.videoMime || 'video/webm' });
           openPreview(blob, 'video');
           stream.getTracks().forEach((track) => track.stop());
         };
@@ -367,14 +348,38 @@
         tickCompose();
       };
 
-      snapBtn.addEventListener('click', () => {
-        if (captureState.mode === 'photo') {
-          capturePhoto();
-          return;
-        }
-        if (captureState.isRecording) stopVideoRecording();
-        else startVideoRecording();
+      // Tap = photo, hold (400ms+) = video
+      let _holdTimer = null;
+      const HOLD_MS = 400;
+
+      snapBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        _holdTimer = setTimeout(() => {
+          _holdTimer = null;
+          startVideoRecording();
+        }, HOLD_MS);
       });
+
+      snapBtn.addEventListener('pointerup', (e) => {
+        e.stopPropagation();
+        if (_holdTimer !== null) {
+          clearTimeout(_holdTimer);
+          _holdTimer = null;
+          // Short tap — take photo
+          capturePhoto();
+        } else if (captureState.isRecording) {
+          stopVideoRecording();
+        }
+      });
+
+      snapBtn.addEventListener('pointercancel', (e) => {
+        e.stopPropagation();
+        if (_holdTimer !== null) { clearTimeout(_holdTimer); _holdTimer = null; }
+        if (captureState.isRecording) stopVideoRecording();
+      });
+
+      // Prevent any click on the snap button from bubbling to the scene
+      snapBtn.addEventListener('click', (e) => e.stopPropagation());
 
       const banner = document.getElementById('info-banner');
       const setBanner = (html, autoHideMs = 0) => {
@@ -713,13 +718,22 @@
             this.el.sceneEl.canvas.removeEventListener('touchstart', this.onTap);
           window.removeEventListener('click', this.onClick);
         },
+        _isOnUI(x, y) {
+          const el = document.elementFromPoint(x, y);
+          return !!(el && el.closest('#capture-controls, #preview-modal, #gh-qr, #info-banner'));
+        },
         onTap(evt) {
           if (!evt.touches || evt.touches.length < 1) return;
           // Ignore multi-touch (pinch/rotate gestures)
           if (evt.touches.length >= 2) return;
-          this._place(evt.touches[0].clientX, evt.touches[0].clientY);
+          const t = evt.touches[0];
+          if (this._isOnUI(t.clientX, t.clientY)) return;
+          this._place(t.clientX, t.clientY);
         },
-        onClick(evt) { this._place(evt.clientX, evt.clientY); },
+        onClick(evt) {
+          if (evt.target && evt.target.closest('#capture-controls, #preview-modal, #gh-qr, #info-banner')) return;
+          this._place(evt.clientX, evt.clientY);
+        },
         _place(sx, sy) {
           const scene = this.el.sceneEl;
           const cam = scene.camera;
@@ -921,7 +935,7 @@
     <a-scene
       xrweb="disableWorldTracking: false; allowedDevices: any"
       vr-mode-ui="enabled: false"
-      renderer="colorManagement: true; shadowMapEnabled: true; shadowMapType: pcfsoft"
+      renderer="colorManagement: true; shadowMapEnabled: true; shadowMapType: pcfsoft; preserveDrawingBuffer: true"
       loading-screen="enabled: false">
 
       <a-entity light="type: ambient; intensity: 0.55"></a-entity>
