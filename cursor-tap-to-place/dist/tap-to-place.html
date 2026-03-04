@@ -124,7 +124,6 @@
         mediaRecorder: null,
         videoMime: '',
         chunks: [],
-        rafId: null,
         composedCanvas: null,
         composedCtx: null,
         previewBlob: null,
@@ -140,32 +139,26 @@
       const previewSaveBtn = document.getElementById('preview-save');
       const previewCloseBtn = document.getElementById('preview-close');
 
-      const ensureComposer = (sceneCanvas) => {
+      // Draw `src` (canvas or image) + opaque QR watermark into an off-screen 2D canvas.
+      const composeWithQR = (src, w, h) => {
         if (!captureState.composedCanvas) {
           captureState.composedCanvas = document.createElement('canvas');
           captureState.composedCtx = captureState.composedCanvas.getContext('2d', { alpha: false });
         }
-        if (captureState.composedCanvas.width !== sceneCanvas.width || captureState.composedCanvas.height !== sceneCanvas.height) {
-          captureState.composedCanvas.width = sceneCanvas.width;
-          captureState.composedCanvas.height = sceneCanvas.height;
-        }
-      };
-
-      const drawComposedFrame = (sceneCanvas) => {
-        ensureComposer(sceneCanvas);
-        const ctx = captureState.composedCtx;
         const canvas = captureState.composedCanvas;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(sceneCanvas, 0, 0, canvas.width, canvas.height);
-        const qrSize = Math.max(88, Math.floor(canvas.width * 0.16));
-        const margin = Math.max(14, Math.floor(canvas.width * 0.02));
+        const ctx = captureState.composedCtx;
+        canvas.width = w;
+        canvas.height = h;
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(src, 0, 0, w, h);
+        const qrSize = Math.max(88, Math.floor(w * 0.16));
+        const margin = Math.max(14, Math.floor(w * 0.02));
         const x = margin;
-        const y = canvas.height - qrSize - margin;
-        ctx.fillStyle = 'rgba(255,255,255,1)';
+        const y = h - qrSize - margin;
+        ctx.fillStyle = '#ffffff';
         ctx.fillRect(x - 6, y - 6, qrSize + 12, qrSize + 12);
-        if (qrExportImg.complete) {
-          ctx.drawImage(qrExportImg, x, y, qrSize, qrSize);
-        }
+        if (qrExportImg.complete) ctx.drawImage(qrExportImg, x, y, qrSize, qrSize);
+        return canvas;
       };
 
       const openPreview = (blob, type) => {
@@ -226,31 +219,58 @@
         } catch (_err) {}
       });
 
+      // Photo — XR8.CanvasScreenshot reads pixels inside the XR render loop,
+      // guaranteeing a non-black frame. Falls back to rAF for desktop/non-XR.
       const capturePhoto = () => {
         const scene = document.querySelector('a-scene');
         if (!scene || !scene.canvas) return;
-        drawComposedFrame(scene.canvas);
-        captureState.composedCanvas.toBlob((blob) => {
-          if (!blob) return;
-          openPreview(blob, 'image');
-        }, 'image/png');
+
+        const blobFromImage = (img) => {
+          const c = composeWithQR(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
+          c.toBlob((blob) => { if (blob) openPreview(blob, 'image'); }, 'image/png');
+        };
+
+        if (typeof XR8 !== 'undefined' && XR8.CanvasScreenshot) {
+          XR8.CanvasScreenshot.takeScreenshot()
+            .then((b64) => {
+              const img = new Image();
+              img.onload = () => blobFromImage(img);
+              img.src = b64.startsWith('data:') ? b64 : 'data:image/jpeg;base64,' + b64;
+            })
+            .catch(() => {
+              requestAnimationFrame(() => {
+                const c = scene.canvas;
+                composeWithQR(c, c.width, c.height).toBlob(
+                  (blob) => { if (blob) openPreview(blob, 'image'); }, 'image/png'
+                );
+              });
+            });
+        } else {
+          requestAnimationFrame(() => {
+            const c = scene.canvas;
+            composeWithQR(c, c.width, c.height).toBlob(
+              (blob) => { if (blob) openPreview(blob, 'image'); }, 'image/png'
+            );
+          });
+        }
       };
 
       const stopVideoRecording = () => {
         if (!captureState.isRecording) return;
         captureState.isRecording = false;
         snapBtn.classList.remove('recording');
-        if (captureState.rafId) cancelAnimationFrame(captureState.rafId);
         if (captureState.mediaRecorder && captureState.mediaRecorder.state !== 'inactive') {
           captureState.mediaRecorder.stop();
         }
       };
 
+      // Video — captureStream() directly on the WebGL canvas.
+      // The browser fires a video frame on every gl.commit() (each render cycle),
+      // so no pixel readback or intermediate 2D copy needed.
       const startVideoRecording = () => {
         const scene = document.querySelector('a-scene');
         if (!scene || !scene.canvas) return;
-        drawComposedFrame(scene.canvas);
-        const stream = captureState.composedCanvas.captureStream(30);
+        const stream = scene.canvas.captureStream(30);
         captureState.chunks = [];
         const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
           ? 'video/webm;codecs=vp8,opus'
@@ -265,19 +285,11 @@
         captureState.mediaRecorder.onstop = () => {
           const blob = new Blob(captureState.chunks, { type: captureState.videoMime || 'video/webm' });
           openPreview(blob, 'video');
-          stream.getTracks().forEach((track) => track.stop());
+          stream.getTracks().forEach((t) => t.stop());
         };
-
-        const tickCompose = () => {
-          if (!captureState.isRecording) return;
-          drawComposedFrame(scene.canvas);
-          captureState.rafId = requestAnimationFrame(tickCompose);
-        };
-
         captureState.isRecording = true;
         snapBtn.classList.add('recording');
         captureState.mediaRecorder.start(100);
-        tickCompose();
       };
 
       // Tap = photo, hold (400ms+) = video
@@ -330,6 +342,10 @@
       updateLoadingBanner();
 
       window.addEventListener('xrloaded', () => {
+        // Register 8th Wall's screenshot pipeline so takeScreenshot() works
+        if (typeof XR8 !== 'undefined' && XR8.CanvasScreenshot) {
+          try { XR8.addCameraPipelineModule(XR8.CanvasScreenshot.pipelineModule()); } catch(e) {}
+        }
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         if (isMobile) {
           banner.innerHTML = '<span class="ok">MOBILE — SLAM active</span>';
