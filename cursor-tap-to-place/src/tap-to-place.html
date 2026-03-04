@@ -292,21 +292,36 @@
             if (!obj.isMesh) return;
             obj.castShadow = true;
             obj.receiveShadow = true;
-            const mat = obj.material;
-            if (!mat) return;
-            const n = (mat.name || '').toLowerCase();
-            const isHoodie = n === 'test' || n.includes('golden yellow') ||
-              n.includes('hoodie') || n.includes('hood') || n.includes('sweater') ||
-              n.includes('shirt') || n.includes('outfit') || n.includes('clothes') ||
-              mat.name === '09-Golden Yellow #FFBF0B GFAR.001' || mat.name === 'Test';
-            if (isHoodie) {
-              mat.map = null;
-              mat.color.setHex(0xffffff);
-              mat.roughness = 0.8;
-              mat.metalness = 0.0;
-              mat.emissive = new THREE.Color(0x000000);
-              mat.needsUpdate = true;
+            if (obj.geometry?.attributes?.uv && !obj.geometry.attributes.uv2) {
+              obj.geometry.setAttribute(
+                'uv2',
+                new THREE.BufferAttribute(obj.geometry.attributes.uv.array, 2)
+              );
             }
+            const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+            materials.forEach((mat) => {
+              if (!mat) return;
+              const n = (mat.name || '').toLowerCase();
+              const isHoodie = n === 'test' || n.includes('golden yellow') ||
+                n.includes('hoodie') || n.includes('hood') || n.includes('sweater') ||
+                n.includes('shirt') || n.includes('outfit') || n.includes('clothes') ||
+                mat.name === '09-Golden Yellow #FFBF0B GFAR.001' || mat.name === 'Test';
+              if (isHoodie) {
+                mat.map = null;
+                mat.color.setHex(0xf0f0f0);
+                mat.roughness = 0.92;
+                mat.metalness = 0.0;
+                mat.emissive = new THREE.Color(0x000000);
+              }
+              if ('aoMapIntensity' in mat) {
+                if (!mat.aoMap && mat.map) mat.aoMap = mat.map;
+                mat.aoMapIntensity = mat.aoMap ? 0.62 : 0.0;
+              }
+              if ('envMapIntensity' in mat) mat.envMapIntensity = 0.68;
+              if ('roughness' in mat) mat.roughness = Math.max(mat.roughness ?? 0.8, 0.82);
+              if ('metalness' in mat) mat.metalness = Math.min(mat.metalness ?? 0.0, 0.05);
+              mat.needsUpdate = true;
+            });
           });
           // VRM scene stays at local origin (0,0,0) so placement position matches
           if (vrm.expressionManager) {
@@ -502,6 +517,8 @@
             cam.getWorldPosition(cp);
             const angle = Math.atan2(cp.x - hit.x, cp.z - hit.z);
             this.el.object3D.rotation.set(0, angle, 0);
+            const halo = this.el.components['teleport-halo'];
+            if (halo && typeof halo.play === 'function') halo.play();
             const ui = document.getElementById('cursor-reticle');
             if (ui) {
               ui.textContent = 'Pinch to scale · Tap to reposition';
@@ -510,6 +527,92 @@
             }
           }
         }
+      });
+
+      /* teleport-halo — reddit orange particle rings on each placement */
+      AFRAME.registerComponent('teleport-halo', {
+        init() {
+          this.effects = [];
+        },
+        _disposeEffect(effect) {
+          if (!effect) return;
+          effect.rings.forEach((ring) => {
+            ring.points.geometry.dispose();
+            ring.points.material.dispose();
+          });
+          this.el.object3D.remove(effect.group);
+        },
+        play() {
+          this.effects.forEach((effect) => this._disposeEffect(effect));
+          this.effects = [];
+
+          const burst = {
+            group: new THREE.Group(),
+            rings: [],
+            age: 0,
+            duration: 1.55,
+          };
+
+          const ringCount = 7;
+          for (let ringIndex = 0; ringIndex < ringCount; ringIndex++) {
+            const y = 0.08 + ringIndex * 0.16;
+            const radius = 0.72 + Math.random() * 0.24;
+            const pointsCount = 14 + Math.floor(Math.random() * 9);
+            const positions = new Float32Array(pointsCount * 3);
+
+            for (let i = 0; i < pointsCount; i++) {
+              const angle = (i / pointsCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.35;
+              const ringJitter = (Math.random() - 0.5) * 0.09;
+              const rr = radius + ringJitter;
+              positions[i * 3 + 0] = Math.cos(angle) * rr;
+              positions[i * 3 + 1] = y + (Math.random() - 0.5) * 0.02;
+              positions[i * 3 + 2] = Math.sin(angle) * rr;
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const material = new THREE.PointsMaterial({
+              color: 0xFF4500,
+              size: 0.035 + Math.random() * 0.012,
+              transparent: true,
+              opacity: 0.95,
+              depthWrite: false,
+              blending: THREE.AdditiveBlending,
+            });
+
+            const points = new THREE.Points(geometry, material);
+            burst.group.add(points);
+            burst.rings.push({
+              points,
+              speedY: 0.22 + Math.random() * 0.24,
+              spread: 1.0 + Math.random() * 0.35,
+            });
+          }
+
+          this.el.object3D.add(burst.group);
+          this.effects.push(burst);
+        },
+        tick(_time, delta) {
+          const dt = delta / 1000;
+          if (!this.effects.length) return;
+
+          this.effects = this.effects.filter((effect) => {
+            effect.age += dt;
+            const t = effect.age / effect.duration;
+            const alive = t < 1;
+
+            effect.rings.forEach((ring) => {
+              ring.points.position.y += ring.speedY * dt;
+              const radialScale = 1 + t * 0.14 * ring.spread;
+              ring.points.scale.set(radialScale, 1, radialScale);
+              ring.points.material.opacity = Math.max(0, 0.95 * (1 - t));
+            });
+
+            if (!alive) this._disposeEffect(effect);
+            return alive;
+          });
+        },
       });
 
       /* pinch-scale — two-finger pinch to scale + rotate the placed VRM */
@@ -596,7 +699,7 @@
       renderer="colorManagement: true; shadowMapEnabled: true; shadowMapType: pcfsoft"
       loading-screen="enabled: false">
 
-      <a-entity light="type: ambient; intensity: 0.8"></a-entity>
+      <a-entity light="type: ambient; intensity: 0.55"></a-entity>
       <a-entity
         light="type: directional; intensity: 0.9; castShadow: true; shadowBias: -0.0002; shadowMapWidth: 1024; shadowMapHeight: 1024; shadowCameraTop: 3; shadowCameraRight: 3; shadowCameraBottom: -3; shadowCameraLeft: -3; shadowCameraFar: 10"
         position="-1 2 1">
@@ -618,6 +721,7 @@
         id="snoo-vrm"
         scale="0.9 0.9 0.9"
         tap-to-place
+        teleport-halo
         pinch-scale="minScale: 0.2; maxScale: 5.0; rotationFactor: 3.0"
         vrm-character="model: ./redditslides/public/finalsnoo.vrm; animation: ./redditslides/public/reddit-animation/animations/Step Hip Hop Dance.fbx; speed: 0.8">
       </a-entity>
