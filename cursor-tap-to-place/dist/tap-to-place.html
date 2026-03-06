@@ -69,9 +69,11 @@
         cursor:pointer; pointer-events:auto;
         display:flex; align-items:center; justify-content:center;
         transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+        user-select: none; -webkit-user-select: none;
+        touch-action: none; -webkit-touch-callout: none;
       }
       #snap-btn:active { transform:scale(0.9); box-shadow:0 1px 8px rgba(255,69,0,0.4); }
-      #snap-btn svg { width:28px; height:28px; fill:#fff; }
+      #snap-btn svg { width:28px; height:28px; fill:#fff; pointer-events:none; }
       #snap-btn.recording {
         background: #c62828;
       }
@@ -85,6 +87,7 @@
         justify-content: center;
       }
       #preview-card {
+        position: relative;
         width: min(92vw, 420px);
         background: #111;
         border: 1px solid rgba(255,255,255,0.15);
@@ -97,6 +100,14 @@
         object-fit: contain;
         border-radius: 10px;
         background: #000;
+      }
+      #preview-video {
+        width: 100%;
+        max-height: 64vh;
+        object-fit: contain;
+        border-radius: 10px;
+        background: #000;
+        display: none;
       }
       #preview-actions {
         display: flex;
@@ -115,7 +126,51 @@
       .preview-btn.primary {
         background: #FF4500;
         border-color: #FF4500;
-      }</style></head><body><div id="info-banner"><span class="ok">Loading...</span></div><div id="gh-qr"><a href="https://superside-immersive.github.io/slam/cursor-tap-to-place/dist/tap-to-place.html" target="_blank"><img src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=https%3A%2F%2Fsuperside-immersive.github.io%2Fslam%2Fcursor-tap-to-place%2Fdist%2Ftap-to-place.html" alt="QR"></a></div><div id="capture-controls"><button id="snap-btn" title="Tap for photo · Hold for video" type="button"><svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2 7.17 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3.17L15 2H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg></button></div><div id="preview-modal"><div id="preview-card"><img id="preview-media" alt="Preview"/><video id="preview-video" style="display:none" controls playsinline></video><div id="preview-actions"><button id="preview-share" class="preview-btn primary" type="button">Share</button> <button id="preview-save" class="preview-btn" type="button">Save</button> <button id="preview-close" class="preview-btn" type="button">Close</button></div></div></div><script>const qrExportImg = new Image();
+      }
+      #preview-close {
+        position: absolute;
+        top: -14px;
+        right: -14px;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #222;
+        border: 2px solid rgba(255,255,255,0.3);
+        color: #fff;
+        font-size: 20px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 1;
+        padding: 0;
+        line-height: 1;
+        transition: background 0.15s;
+      }
+      #preview-close:hover { background: #444; }
+      #cta-overlay {
+        position: fixed;
+        left: 50%;
+        top: 38%;
+        transform: translate(-50%, -50%);
+        z-index: 999998;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+        width: min(72vw, 320px);
+      }
+      #cta-overlay.visible {
+        opacity: 1;
+      }
+      #cta-overlay.fade-out {
+        opacity: 0;
+      }
+      #cta-overlay svg {
+        width: 100%;
+        height: auto;
+        filter: drop-shadow(0 2px 12px rgba(0,0,0,0.5));
+      }</style></head><body><div id="info-banner"><span class="ok">Loading...</span></div><div id="gh-qr"><a href="https://superside-immersive.github.io/slam/cursor-tap-to-place/dist/tap-to-place.html" target="_blank"><img src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=https%3A%2F%2Fsuperside-immersive.github.io%2Fslam%2Fcursor-tap-to-place%2Fdist%2Ftap-to-place.html" alt="QR"></a></div><div id="capture-controls"><button id="snap-btn" title="Tap for photo · Hold for video" type="button"><svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2 7.17 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3.17L15 2H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg></button></div><div id="cta-overlay"><svg width="273" height="75" viewBox="0 0 273 75" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="272.354" height="74.3662" rx="37.1831" fill="#B3B3B3"/><path d="M24.2188 22.3936H33.5938C35.6771 22.3936 37.487 22.7712 39.0234 23.5264C40.5729 24.2686 41.7578 25.3363 42.5781 26.7295C43.4115 28.1097 43.8281 29.7243 43.8281 31.5732C43.8281 33.4613 43.4049 35.1344 42.5586 36.5928C41.7253 38.0511 40.5469 39.1904 39.0234 40.0107C37.513 40.818 35.7682 41.2217 33.7891 41.2217H29.8047V51.1826H24.2188V22.3936ZM33.4766 36.2607C34.4401 36.2607 35.2799 36.0719 35.9961 35.6943C36.7253 35.3037 37.2852 34.7699 37.6758 34.0928C38.0794 33.4157 38.2812 32.641 38.2812 31.7686C38.2812 30.8831 38.0729 30.1084 37.6562 29.4443C37.2526 28.7803 36.6667 28.2725 35.8984 27.9209C35.1432 27.5693 34.2578 27.3936 33.2422 27.3936H29.8047V36.2607H33.4766ZM46.4062 30.2451H51.7969V51.1826H46.4062V30.2451ZM49.1016 28.2139C48.4635 28.2139 47.8841 28.0706 47.3633 27.7842C46.8424 27.4847 46.4323 27.0745 46.1328 26.5537C45.8464 26.0329 45.7031 25.4535 45.7031 24.8154C45.7031 24.1774 45.8464 23.598 46.1328 23.0771C46.4323 22.5563 46.8424 22.1527 47.3633 21.8662C47.8841 21.5667 48.4635 21.417 49.1016 21.417C49.7396 21.417 50.319 21.5667 50.8398 21.8662C51.3607 22.1527 51.7643 22.5563 52.0508 23.0771C52.3503 23.598 52.5 24.1774 52.5 24.8154C52.5 25.4535 52.3503 26.0329 52.0508 26.5537C51.7643 27.0745 51.3607 27.4847 50.8398 27.7842C50.319 28.0706 49.7396 28.2139 49.1016 28.2139ZM55.4688 30.2451H60.7031V32.9404H60.8203C61.4844 31.9769 62.3763 31.2347 63.4961 30.7139C64.6159 30.193 65.8464 29.9326 67.1875 29.9326C68.6458 29.9326 69.8958 30.2646 70.9375 30.9287C71.9922 31.5928 72.7865 32.5042 73.3203 33.6631C73.8672 34.8219 74.1406 36.1175 74.1406 37.5498V51.1826H68.75V38.7217C68.75 37.3415 68.418 36.2933 67.7539 35.5771C67.0898 34.861 66.1589 34.5029 64.9609 34.5029C64.1797 34.5029 63.4766 34.6722 62.8516 35.0107C62.2396 35.3363 61.7513 35.818 61.3867 36.4561C61.0352 37.0941 60.8594 37.8623 60.8594 38.7607V51.1826H55.4688V30.2451ZM87.2266 51.417C85.2083 51.417 83.3529 50.9417 81.6602 49.9912C79.9805 49.0407 78.6523 47.7386 77.6758 46.085C76.6992 44.4313 76.2109 42.6019 76.2109 40.5967C76.2109 38.6045 76.6992 36.7946 77.6758 35.167C78.6523 33.5394 79.9674 32.2633 81.6211 31.3389C83.2747 30.4014 85.0781 29.9326 87.0312 29.9326C88.2292 29.9326 89.3945 30.1084 90.5273 30.46C91.6602 30.7985 92.6693 31.2738 93.5547 31.8857L91.5625 36.2607C91.0156 35.7529 90.3581 35.3558 89.5898 35.0693C88.8216 34.7699 88.0208 34.6201 87.1875 34.6201C86.0677 34.6201 85.0651 34.887 84.1797 35.4209C83.3073 35.9417 82.6237 36.6579 82.1289 37.5693C81.6471 38.4808 81.4062 39.5029 81.4062 40.6357C81.4062 41.7555 81.6536 42.7777 82.1484 43.7021C82.6432 44.6266 83.3333 45.3558 84.2188 45.8896C85.1042 46.4235 86.0938 46.6904 87.1875 46.6904C88.0599 46.6904 88.9062 46.5407 89.7266 46.2412C90.5469 45.9287 91.1849 45.5576 91.6406 45.1279L93.5938 49.6201C92.7995 50.141 91.8424 50.5706 90.7227 50.9092C89.6159 51.2477 88.4505 51.417 87.2266 51.417ZM95.7812 21.8076H101.172V32.3154H101.309C101.96 31.5472 102.812 30.9613 103.867 30.5576C104.922 30.141 106.055 29.9326 107.266 29.9326C108.828 29.9326 110.15 30.2712 111.23 30.9482C112.311 31.6123 113.118 32.5173 113.652 33.6631C114.186 34.8089 114.453 36.1045 114.453 37.5498V51.1826H109.062V38.7217C109.062 37.3415 108.717 36.2933 108.027 35.5771C107.35 34.861 106.419 34.5029 105.234 34.5029C104.466 34.5029 103.776 34.6657 103.164 34.9912C102.552 35.3167 102.064 35.7985 101.699 36.4365C101.348 37.0745 101.172 37.8493 101.172 38.7607V51.1826H95.7812V21.8076ZM130 34.8545H125.469V30.2451H130V24.0342H135.391V30.2451H139.922V34.8545H135.391V51.1826H130V34.8545ZM151.602 51.4951C149.583 51.4951 147.734 51.0133 146.055 50.0498C144.375 49.0863 143.047 47.7777 142.07 46.124C141.107 44.4704 140.625 42.654 140.625 40.6748C140.625 38.6826 141.107 36.8662 142.07 35.2256C143.047 33.585 144.368 32.2959 146.035 31.3584C147.715 30.4079 149.57 29.9326 151.602 29.9326C153.62 29.9326 155.462 30.4079 157.129 31.3584C158.809 32.3089 160.137 33.6045 161.113 35.2451C162.09 36.8857 162.578 38.6956 162.578 40.6748C162.578 42.654 162.09 44.4704 161.113 46.124C160.137 47.7777 158.809 49.0863 157.129 50.0498C155.449 51.0133 153.607 51.4951 151.602 51.4951ZM151.602 46.8076C152.669 46.8076 153.639 46.5342 154.512 45.9873C155.397 45.4404 156.094 44.6982 156.602 43.7607C157.122 42.8102 157.383 41.7686 157.383 40.6357C157.383 39.516 157.122 38.5003 156.602 37.5889C156.094 36.6644 155.397 35.9417 154.512 35.4209C153.639 34.887 152.669 34.6201 151.602 34.6201C150.521 34.6201 149.538 34.887 148.652 35.4209C147.78 35.9417 147.09 36.6644 146.582 37.5889C146.074 38.5003 145.82 39.516 145.82 40.6357C145.82 41.7686 146.074 42.8102 146.582 43.7607C147.09 44.6982 147.78 45.4404 148.652 45.9873C149.538 46.5342 150.521 46.8076 151.602 46.8076ZM181.016 51.4951C179.766 51.4951 178.581 51.2738 177.461 50.8311C176.341 50.3753 175.371 49.7568 174.551 48.9756C173.73 48.1943 173.138 47.3285 172.773 46.3779L177.188 44.4248C177.526 45.18 178.04 45.8245 178.73 46.3584C179.434 46.8923 180.195 47.1592 181.016 47.1592C181.51 47.1592 181.96 47.0615 182.363 46.8662C182.78 46.6709 183.105 46.417 183.34 46.1045C183.587 45.779 183.711 45.4404 183.711 45.0889C183.711 44.3988 183.327 43.8519 182.559 43.4482C181.79 43.0446 180.801 42.667 179.59 42.3154L179.062 42.1592C177.435 41.6514 176.081 40.9027 175 39.9131C173.932 38.9235 173.398 37.6279 173.398 36.0264C173.398 34.8415 173.711 33.7868 174.336 32.8623C174.961 31.9378 175.814 31.2217 176.895 30.7139C177.988 30.193 179.206 29.9326 180.547 29.9326C181.693 29.9326 182.767 30.1279 183.77 30.5186C184.785 30.8962 185.664 31.417 186.406 32.0811C187.148 32.7321 187.708 33.4743 188.086 34.3076L183.789 36.1045C183.477 35.5706 183.066 35.1214 182.559 34.7568C182.051 34.3792 181.445 34.1904 180.742 34.1904C180.039 34.1904 179.46 34.3662 179.004 34.7178C178.548 35.0693 178.32 35.5316 178.32 36.1045C178.32 36.5863 178.483 36.9899 178.809 37.3154C179.147 37.6279 179.577 37.8883 180.098 38.0967C180.632 38.305 181.432 38.5785 182.5 38.917C183.581 39.2555 184.544 39.6396 185.391 40.0693C186.237 40.486 186.986 41.1045 187.637 41.9248C188.301 42.7321 188.633 43.7477 188.633 44.9717C188.633 46.2087 188.288 47.3285 187.598 48.3311C186.908 49.3206 185.977 50.0954 184.805 50.6553C183.646 51.2152 182.383 51.4951 181.016 51.4951ZM201.055 51.417C199.036 51.417 197.181 50.9417 195.488 49.9912C193.809 49.0407 192.48 47.7386 191.504 46.085C190.527 44.4313 190.039 42.6019 190.039 40.5967C190.039 38.6045 190.527 36.7946 191.504 35.167C192.48 33.5394 193.796 32.2633 195.449 31.3389C197.103 30.4014 198.906 29.9326 200.859 29.9326C202.057 29.9326 203.223 30.1084 204.355 30.46C205.488 30.7985 206.497 31.2738 207.383 31.8857L205.391 36.2607C204.844 35.7529 204.186 35.3558 203.418 35.0693C202.65 34.7699 201.849 34.6201 201.016 34.6201C199.896 34.6201 198.893 34.887 198.008 35.4209C197.135 35.9417 196.452 36.6579 195.957 37.5693C195.475 38.4808 195.234 39.5029 195.234 40.6357C195.234 41.7555 195.482 42.7777 195.977 43.7021C196.471 44.6266 197.161 45.3558 198.047 45.8896C198.932 46.4235 199.922 46.6904 201.016 46.6904C201.888 46.6904 202.734 46.5407 203.555 46.2412C204.375 45.9287 205.013 45.5576 205.469 45.1279L207.422 49.6201C206.628 50.141 205.671 50.5706 204.551 50.9092C203.444 51.2477 202.279 51.417 201.055 51.417ZM224.414 48.5264H224.277C223.483 49.4769 222.533 50.2126 221.426 50.7334C220.319 51.2412 219.089 51.4951 217.734 51.4951C215.885 51.4951 214.193 51.0329 212.656 50.1084C211.133 49.1709 209.928 47.8818 209.043 46.2412C208.171 44.5876 207.734 42.7451 207.734 40.7139C207.734 38.6566 208.177 36.8076 209.062 35.167C209.961 33.5264 211.178 32.2438 212.715 31.3193C214.251 30.3949 215.951 29.9326 217.812 29.9326C219.167 29.9326 220.391 30.18 221.484 30.6748C222.578 31.1696 223.516 31.8727 224.297 32.7842H224.414V30.2451H229.609V51.1826H224.414V48.5264ZM218.789 46.7686C220.286 46.7686 221.536 46.2868 222.539 45.3232L224.219 46.8467H224.336L224.297 40.7139C224.297 39.542 224.062 38.4938 223.594 37.5693C223.125 36.6449 222.474 35.9222 221.641 35.4014C220.807 34.8805 219.857 34.6201 218.789 34.6201C217.708 34.6201 216.725 34.8805 215.84 35.4014C214.967 35.9222 214.277 36.6514 213.77 37.5889C213.262 38.5133 213.008 39.555 213.008 40.7139C213.008 41.8857 213.262 42.9339 213.77 43.8584C214.29 44.7699 214.987 45.486 215.859 46.0068C216.745 46.5146 217.721 46.7686 218.789 46.7686ZM233.555 21.8076H238.945V51.1826H233.555V21.8076ZM252.266 51.4951C250.104 51.4951 248.203 51.0394 246.562 50.1279C244.922 49.2035 243.652 47.9274 242.754 46.2998C241.855 44.6722 241.406 42.8232 241.406 40.7529C241.406 38.6175 241.855 36.736 242.754 35.1084C243.665 33.4678 244.889 32.2048 246.426 31.3193C247.962 30.4209 249.648 29.9717 251.484 29.9717C253.216 29.9717 254.811 30.3753 256.27 31.1826C257.728 31.9899 258.88 33.1292 259.727 34.6006C260.586 36.0719 261.016 37.7712 261.016 39.6982C261.016 40.5446 260.911 41.4691 260.703 42.4717H246.328C246.654 43.904 247.324 45.0368 248.34 45.8701C249.355 46.7035 250.612 47.1201 252.109 47.1201C253.099 47.1201 254.062 46.9508 255 46.6123C255.951 46.2738 256.745 45.8441 257.383 45.3232L259.141 49.5811C258.294 50.167 257.266 50.6357 256.055 50.9873C254.857 51.3258 253.594 51.4951 252.266 51.4951ZM256.055 38.8779C256.055 37.9925 255.859 37.2048 255.469 36.5146C255.091 35.8245 254.551 35.2907 253.848 34.9131C253.158 34.5355 252.37 34.3467 251.484 34.3467C250.13 34.3467 248.991 34.7568 248.066 35.5771C247.155 36.3844 246.562 37.4847 246.289 38.8779H256.055Z" fill="white"/></svg></div><div id="preview-modal"><div id="preview-card"><button id="preview-close" type="button" aria-label="Close">&times;</button> <img id="preview-media" alt="Preview"/><video id="preview-video" controls playsinline autoplay></video><div id="preview-actions"><button id="preview-share" class="preview-btn primary" type="button">Share</button></div></div></div><script>const qrExportImg = new Image();
       qrExportImg.crossOrigin = 'anonymous';
       qrExportImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=https%3A%2F%2Fsuperside-immersive.github.io%2Fslam%2Fcursor-tap-to-place%2Fdist%2Ftap-to-place.html';
 
@@ -136,7 +191,6 @@
       const previewImg = document.getElementById('preview-media');
       const previewVideo = document.getElementById('preview-video');
       const previewShareBtn = document.getElementById('preview-share');
-      const previewSaveBtn = document.getElementById('preview-save');
       const previewCloseBtn = document.getElementById('preview-close');
 
       // Draw `src` (canvas or image) + opaque QR watermark into an off-screen 2D canvas.
@@ -174,6 +228,8 @@
           previewImg.style.display = 'none';
           previewVideo.style.display = 'block';
           previewVideo.src = captureState.previewUrl;
+          previewVideo.load();
+          previewVideo.play().catch(() => {});
         }
         previewModal.style.display = 'flex';
       };
@@ -207,11 +263,6 @@
       };
 
       previewCloseBtn.addEventListener('click', closePreview);
-      previewSaveBtn.addEventListener('click', () => {
-        if (!captureState.previewBlob) return;
-        const isMP4save = captureState.previewType !== 'image' && (captureState.videoMime || '').includes('mp4');
-        downloadBlob(captureState.previewBlob, captureState.previewType === 'image' ? 'png' : isMP4save ? 'mp4' : 'webm');
-      });
       previewShareBtn.addEventListener('click', async () => {
         if (!captureState.previewBlob) return;
         try {
@@ -296,8 +347,11 @@
       let _holdTimer = null;
       const HOLD_MS = 400;
 
+      snapBtn.addEventListener('selectstart', (e) => e.preventDefault());
+      snapBtn.addEventListener('contextmenu', (e) => e.preventDefault());
       snapBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
+        e.preventDefault();
         _holdTimer = setTimeout(() => {
           _holdTimer = null;
           startVideoRecording();
@@ -324,6 +378,16 @@
 
       // Prevent any click on the snap button from bubbling to the scene
       snapBtn.addEventListener('click', (e) => e.stopPropagation());
+
+      // CTA overlay — show once on first placement, fade out after 3s
+      const ctaOverlay = document.getElementById('cta-overlay');
+      window._showCTA = () => {
+        ctaOverlay.classList.add('visible');
+        setTimeout(() => {
+          ctaOverlay.classList.remove('visible');
+          ctaOverlay.classList.add('fade-out');
+        }, 3000);
+      };
 
       const banner = document.getElementById('info-banner');
       const setBanner = (html, autoHideMs = 0) => {
@@ -696,6 +760,7 @@
             hasHit = this.raycaster.ray.intersectPlane(ground, hit);
           }
           if (hasHit) {
+            const isFirst = !this.placed;
             this.el.object3D.position.copy(hit);
             this.el.object3D.visible = true;
             this.placed = true;
@@ -706,6 +771,7 @@
             this.el.object3D.rotation.set(0, angle, 0);
             const halo = this.el.components['teleport-halo'];
             if (halo && typeof halo.play === 'function') halo.play();
+            if (isFirst && window._showCTA) window._showCTA();
           }
         }
       });
