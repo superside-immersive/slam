@@ -31,6 +31,47 @@
       });</script><style>html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000; }
       .a-enter-vr, .a-enter-ar, .a-enter-vr-button, .a-enter-ar-button,
       [class*="immersive-web"], [class*="webxr"] { display:none !important; }
+
+      /* ── Reddit-themed overrides for 8th Wall permission / loading dialogs ── */
+      .immersive-background-8w {
+        background: linear-gradient(135deg, #1a1a2e 0%, #0d0d0d 100%) !important;
+      }
+      .prompt-box-8w {
+        background-color: #1a1a1b !important;
+        color: #d7dadc !important;
+        border: 1px solid #343536 !important;
+        border-radius: 16px !important;
+        filter: drop-shadow(0 4px 24px rgba(0,0,0,0.6)) !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+      }
+      .prompt-box-8w p {
+        color: #d7dadc !important;
+        font-size: 14px !important;
+        line-height: 1.5 !important;
+      }
+      .prompt-button-8w {
+        border-radius: 20px !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        padding: 8px 16px !important;
+        transition: opacity 0.15s !important;
+        background-color: #343536 !important;
+        color: #d7dadc !important;
+      }
+      .button-primary-8w {
+        background-color: #FF4500 !important;
+        color: #fff !important;
+      }
+      .poweredby-img-8w {
+        opacity: 0.3 !important;
+        filter: grayscale(1) brightness(2) !important;
+      }
+      .immersive-enter-button-8w {
+        background-color: #FF4500 !important;
+        border-radius: 24px !important;
+        font-weight: 600 !important;
+      }
+      /* ── End 8th Wall overrides ── */
       #info-banner {
         position:fixed; top:0; left:0; right:0;
         background:rgba(0,0,0,0.88); color:#FF4500;
@@ -944,4 +985,4 @@
             this.initialSpread = 0;
           }
         }
-      });</script><a-scene xrweb="disableWorldTracking: false; allowedDevices: any" vr-mode-ui="enabled: false" renderer="colorManagement: true; shadowMapEnabled: true; shadowMapType: pcfsoft; preserveDrawingBuffer: true" loading-screen="enabled: false"><a-entity light="type: ambient; intensity: 0.55"></a-entity><a-entity light="type: directional; intensity: 0.9; castShadow: true; shadowBias: -0.0002; shadowMapWidth: 1024; shadowMapHeight: 1024; shadowCameraTop: 3; shadowCameraRight: 3; shadowCameraBottom: -3; shadowCameraLeft: -3; shadowCameraFar: 10" position="-1 2 1"></a-entity><a-image id="ground-ring" ground-reticle src="./assets/RDDT.png" rotation="-90 0 0" width="0.6" height="0.6" material="shader: flat; transparent: true; opacity: 0.85"></a-image><a-entity id="snoo-vrm" scale="0.9 0.9 0.9" tap-to-place teleport-halo pinch-scale="minScale: 0.2; maxScale: 5.0; rotationFactor: 3.0" vrm-character="model: ./redditslides/public/finalsnoo.vrm; animation: ./redditslides/public/reddit-animation/animations/Step Hip Hop Dance.fbx; speed: 0.8"></a-entity><a-camera position="0 1.2 0"></a-camera></a-scene></body></html>
+      });</script><a-scene xrweb="disableWorldTracking: false; allowedDevices: any" vr-mode-ui="enabled: false" renderer="colorManagement: true; shadowMapEnabled: true; shadowMapType: pcfsoft; preserveDrawingBuffer: true" loading-screen="enabled: false"><a-entity light="type: ambient; intensity: 0.55"></a-entity><a-entity light="type: directional; intensity: 0.9; castShadow: true; shadowBias: -0.0002; shadowMapWidth: 1024; shadowMapHeight: 1024; shadowCameraTop: 3; shadowCameraRight: 3; shadowCameraBottom: -3; shadowCameraLeft: -3; shadowCameraFar: 10" position="-1 2 1"></a-entity><a-image id="ground-ring" ground-reticle src="./assets/RDDT.png" rotation="-90 0 0" width="0.6" height="0.6" material="shader: flat; transparent: true; opacity: 0.85"></a-image><a-entity id="snoo-vrm" scale="0.9 0.9 0.9" tap-to-place teleport-halo pinch-scale="minScale: 0.5; maxScale: 2.5; rotationFactor: 3.0" vrm-character="model: ./redditslides/public/finalsnoo.vrm; animation: ./redditslides/public/reddit-animation/animations/Step Hip Hop Dance.fbx; speed: 0.8"></a-entity><a-camera position="0 1.2 0"></a-camera></a-scene></body></html>
