@@ -494,31 +494,74 @@
         if (!captureState.isRecording) return;
         captureState.isRecording = false;
         snapBtn.classList.remove('recording');
+        if (captureState._videoAnimId) {
+          cancelAnimationFrame(captureState._videoAnimId);
+          captureState._videoAnimId = null;
+        }
         if (captureState.mediaRecorder && captureState.mediaRecorder.state !== 'inactive') {
           captureState.mediaRecorder.stop();
         }
       };
 
-      // Video — captureStream() directly on the WebGL canvas.
-      // The browser fires a video frame on every gl.commit() (each render cycle),
-      // so no pixel readback or intermediate 2D copy needed.
+      // Video — composite each frame (WebGL canvas + QR watermark) into an
+      // off-screen canvas and record that via captureStream().  This ensures the
+      // QR code is baked into the video file, just like it is for photos.
       const startVideoRecording = () => {
         const scene = document.querySelector('a-scene');
         if (!scene || !scene.canvas) return;
-        const stream = scene.canvas.captureStream(30);
+
+        // --- Composed canvas for QR watermark ---
+        const srcCanvas = scene.canvas;
+        const vidCanvas = document.createElement('canvas');
+        vidCanvas.width = srcCanvas.width;
+        vidCanvas.height = srcCanvas.height;
+        const vidCtx = vidCanvas.getContext('2d', { alpha: false });
+
+        // Render loop: blit WebGL frame + QR each animation frame
+        const drawFrame = () => {
+          vidCtx.drawImage(srcCanvas, 0, 0, vidCanvas.width, vidCanvas.height);
+          // Draw QR watermark (same logic as composeWithQR)
+          const qrSize = Math.max(88, Math.floor(vidCanvas.width * 0.16));
+          const margin = Math.max(14, Math.floor(vidCanvas.width * 0.02));
+          const qx = margin;
+          const qy = vidCanvas.height - qrSize - margin;
+          vidCtx.fillStyle = '#ffffff';
+          vidCtx.fillRect(qx - 6, qy - 6, qrSize + 12, qrSize + 12);
+          if (qrExportImg.complete) vidCtx.drawImage(qrExportImg, qx, qy, qrSize, qrSize);
+          captureState._videoAnimId = requestAnimationFrame(drawFrame);
+        };
+        captureState._videoAnimId = requestAnimationFrame(drawFrame);
+
+        // --- Record the composed canvas (not the raw WebGL one) ---
+        const stream = vidCanvas.captureStream();   // no fixed fps — syncs to rAF
         captureState.chunks = [];
-        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
-          ? 'video/webm;codecs=vp8,opus'
-          : MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')
-          ? 'video/mp4;codecs=avc1'
-          : '';
+
+        // Prefer MP4 on Apple devices (iOS/macOS native players can't open WebM)
+        const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)
+                     && !/Chrome|CriOS|Chromium/.test(navigator.userAgent);
+        let mimeType;
+        if (isApple) {
+          mimeType = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')
+            ? 'video/mp4;codecs=avc1'
+            : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+            ? 'video/webm;codecs=vp8,opus'
+            : '';
+        } else {
+          mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+            ? 'video/webm;codecs=vp8,opus'
+            : MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')
+            ? 'video/mp4;codecs=avc1'
+            : '';
+        }
         captureState.videoMime = mimeType || 'video/webm';
         captureState.mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
         captureState.mediaRecorder.ondataavailable = (evt) => {
           if (evt.data && evt.data.size > 0) captureState.chunks.push(evt.data);
         };
         captureState.mediaRecorder.onstop = () => {
-          const blob = new Blob(captureState.chunks, { type: captureState.videoMime || 'video/webm' });
+          // Strip codec params for clean MIME (some OS handlers choke on extended types)
+          const blobType = (captureState.videoMime || 'video/webm').split(';')[0];
+          const blob = new Blob(captureState.chunks, { type: blobType });
           openPreview(blob, 'video');
           stream.getTracks().forEach((t) => t.stop());
         };
