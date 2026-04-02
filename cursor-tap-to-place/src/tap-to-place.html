@@ -800,7 +800,21 @@
           });
           // VRM scene stays at local origin (0,0,0) so placement position matches
           if (vrm.expressionManager) {
-            try { vrm.expressionManager.setValue('joy', 1.0); } catch(e) {}
+            const smileCandidates = ['smile', 'happy', 'joy'];
+            let smileApplied = false;
+            for (const expressionName of smileCandidates) {
+              try {
+                vrm.expressionManager.setValue(expressionName, 1.0);
+                smileApplied = true;
+                console.log(`Expression applied: ${expressionName}`);
+                break;
+              } catch (err) {
+                // Try next expression preset supported by this avatar
+              }
+            }
+            if (!smileApplied) {
+              console.warn('No smiling expression preset found on this VRM');
+            }
           }
         },
         _addShadowReceiver() {
@@ -1206,7 +1220,7 @@
         tap-to-place
         teleport-halo
         pinch-scale="minScale: 0.5; maxScale: 1.5; rotationFactor: 3.0"
-        vrm-character="model: ./redditslides/public/finalsnoo.vrm; animation: ./redditslides/public/reddit-animation/animations/Step Hip Hop Dance.fbx; speed: 0.8">
+        vrm-character="model: ./redditslides/public/finalsnoo.vrm; animation: ./Excited.fbx; speed: 0.8">
       </a-entity>
 
       <a-camera position="0 1.2 0"></a-camera>
