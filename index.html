@@ -425,7 +425,21 @@
           vrm.scene.rotation.y = Math.PI;
           if (vrm.expressionManager) {
             try {
-              vrm.expressionManager.setValue('joy', 1.0);
+              const smileCandidates = ['smile', 'happy', 'joy'];
+              let smileApplied = false;
+              for (const expressionName of smileCandidates) {
+                try {
+                  vrm.expressionManager.setValue(expressionName, 1.0);
+                  smileApplied = true;
+                  console.log(`Expression applied: ${expressionName}`);
+                  break;
+                } catch (err) {
+                  // Try next expression preset supported by this avatar
+                }
+              }
+              if (!smileApplied) {
+                console.warn('No smiling expression preset found on this VRM');
+              }
             } catch (e) {
               // Ignore missing expression
             }
@@ -605,7 +619,7 @@
         class="cantap"
         position="0 -1 -2"
         scale="0.9 0.9 0.9"
-        vrm-character="model: ./redditslides/public/finalsnoo.vrm; animation: ./redditslides/public/reddit-animation/animations/Step Hip Hop Dance.fbx; speed: 0.8"
+        vrm-character="model: ./redditslides/public/finalsnoo.vrm; animation: ./Excited.fbx; speed: 0.8"
         xrextras-pinch-scale="min: 0.3; max: 2.0"
         xrextras-two-finger-rotate>
       </a-entity>
